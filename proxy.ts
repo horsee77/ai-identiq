@@ -16,11 +16,6 @@ export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const sessionCookie = request.cookies.get(sessionCookieName)?.value;
 
-  // Entrada principal do produto: sempre resolve para login ou dashboard.
-  if (pathname === "/") {
-    return redirectTo(request, sessionCookie ? "/plataforma/dashboard" : "/entrar");
-  }
-
   // Aliases comuns para evitar 404 em links antigos.
   if (pathname === "/dashboard") {
     return redirectTo(request, "/plataforma/dashboard");
@@ -52,7 +47,6 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/",
     "/dashboard",
     "/login",
     "/plataforma/:path*",

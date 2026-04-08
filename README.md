@@ -16,6 +16,13 @@ O sistema funciona sem OpenAI e sem provider externo.
 - Prisma ORM
 - PostgreSQL
 
+## Rotas públicas
+
+- `/` Home institucional da plataforma
+- `/documentacao` Guia rápido e endpoints públicos
+- `/docs` Alias para `/documentacao`
+- `/entrar` Acesso ao painel administrativo
+
 ## Arquitetura de IA (atual)
 
 ### Camadas de resposta
