@@ -1,0 +1,1021 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  PENDING
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+  REMOVED
+}
+
+enum RoleCode {
+  MASTER_ADMIN
+  ADMIN
+  MANAGER
+  ANALYST
+  SUPPORT
+  VIEWER
+}
+
+enum PermissionAction {
+  VIEW
+  CREATE
+  UPDATE
+  DELETE
+  PUBLISH
+  APPROVE
+  REINDEX
+  MANAGE
+  EXPORT
+  EXECUTE
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  BLOCKED
+  ARCHIVED
+}
+
+enum PlanStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELED
+  BLOCKED
+}
+
+enum ProviderType {
+  OPENAI_COMPATIBLE
+  OPENAI
+  AZURE_OPENAI
+  OTHER
+}
+
+enum ProviderAuthType {
+  BEARER
+  API_KEY
+  BASIC
+  CUSTOM
+}
+
+enum ProviderStatus {
+  ACTIVE
+  INACTIVE
+  DEGRADED
+}
+
+enum ModelCategory {
+  CHAT
+  REASONING
+  EMBEDDING
+  MULTIMODAL
+  MODERATION
+}
+
+enum AgentScope {
+  GLOBAL
+  TENANT
+}
+
+enum AgentStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum PromptType {
+  BASE
+  SYSTEM
+  FALLBACK
+  SCENARIO
+  ESCALATION
+  TEMPLATE
+}
+
+enum PromptStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  INDEXING
+  INDEXED
+  FAILED
+  ARCHIVED
+}
+
+enum DocumentVisibility {
+  GLOBAL
+  TENANT
+  PRIVATE
+}
+
+enum EmbeddingJobStatus {
+  PENDING
+  PROCESSING
+  INDEXED
+  FAILED
+  ARCHIVED
+}
+
+enum ConversationStatus {
+  OPEN
+  RESOLVED
+  ESCALATED
+  FAILED
+}
+
+enum MessageRole {
+  SYSTEM
+  USER
+  ASSISTANT
+  TOOL
+}
+
+enum ToolStatus {
+  ACTIVE
+  INACTIVE
+  DEPRECATED
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum AuditSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum ChannelType {
+  WEB_CHAT
+  DASHBOARD
+  API
+  WHATSAPP
+  EMAIL
+  WIDGET
+  CRM
+}
+
+enum HandoffStatus {
+  PENDING
+  IN_QUEUE
+  ASSIGNED
+  COMPLETED
+  REJECTED
+}
+
+enum UsageMetricType {
+  REQUESTS
+  TOKENS
+  COST
+  STORAGE
+  DOCUMENTS
+}
+
+enum FeatureFlagScope {
+  GLOBAL
+  TENANT
+}
+
+enum BillingEventType {
+  LIMIT_WARNING
+  LIMIT_EXCEEDED
+  LIMIT_OVERRIDE
+  PLAN_CHANGED
+  SUBSCRIPTION_UPDATED
+}
+
+enum DataSensitivity {
+  PUBLIC
+  INTERNAL
+  PII
+  SENSITIVE
+  BIOMETRIC
+}
+
+model User {
+  id                   String               @id @default(cuid())
+  email                String               @unique
+  fullName             String
+  passwordHash         String
+  status               UserStatus           @default(PENDING)
+  passwordPolicyVersion Int                 @default(1)
+  failedLoginAttempts  Int                  @default(0)
+  lastLoginAt          DateTime?
+  lastPasswordChangeAt DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  deletedAt            DateTime?
+  sessions             Session[]
+  resetTokens          PasswordResetToken[]
+  memberships          Membership[]
+  promptVersions       PromptVersion[]      @relation("PromptVersionAuthor")
+  uploadedDocuments    KnowledgeDocument[]  @relation("DocumentAuthor")
+  conversations        Conversation[]
+  apiRequestLogs       ApiRequestLog[]      @relation("RequestActor")
+  auditLogs            AuditLog[]
+  feedbacks            Feedback[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  tokenHash    String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Role {
+  id            String          @id @default(cuid())
+  code          RoleCode        @unique
+  name          String
+  description   String?
+  isSystem      Boolean         @default(true)
+  memberships   Membership[]
+  rolePermissions RolePermission[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Permission {
+  id          String             @id @default(cuid())
+  key         String             @unique
+  module      String
+  action      PermissionAction
+  description String?
+  rolePermissions RolePermission[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([module])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Tenant {
+  id                    String             @id @default(cuid())
+  name                  String
+  slug                  String             @unique
+  status                TenantStatus       @default(ACTIVE)
+  blockedReason         String?
+  branding              Json?
+  limits                Json?
+  settings              Json?
+  planId                String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  deletedAt             DateTime?
+  plan                  Plan?              @relation(fields: [planId], references: [id])
+  memberships           Membership[]
+  subscriptions         Subscription[]
+  providers             Provider[]
+  models                Model[]
+  agents                Agent[]
+  prompts               Prompt[]
+  knowledgeDocuments    KnowledgeDocument[]
+  knowledgeChunks       KnowledgeChunk[]
+  embeddingJobs         EmbeddingJob[]
+  conversations         Conversation[]
+  toolDefinitions       ToolDefinition[]
+  toolExecutions        ToolExecution[]
+  apiKeys               ApiKey[]
+  usageRecords          UsageRecord[]
+  apiRequestLogs        ApiRequestLog[]    @relation("RequestTenant")
+  auditLogs             AuditLog[]
+  feedbacks             Feedback[]
+  alerts                Alert[]
+  settingsRecords       Setting[]
+  featureFlags          FeatureFlag[]
+  handoffRecords        HandoffRecord[]
+  billingEvents         BillingEvent[]
+
+  @@index([status])
+}
+
+model Membership {
+  id         String           @id @default(cuid())
+  userId     String
+  tenantId   String
+  roleId     String
+  status     MembershipStatus @default(ACTIVE)
+  isDefault  Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant     Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role       Role             @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+  @@index([roleId])
+}
+
+model Plan {
+  id                   String       @id @default(cuid())
+  name                 String
+  slug                 String       @unique
+  status               PlanStatus   @default(ACTIVE)
+  description          String?
+  maxUsers             Int          @default(10)
+  maxAgents            Int          @default(20)
+  maxDocuments         Int          @default(1000)
+  monthlyTokenLimit    Int          @default(500000)
+  monthlyCostLimitUsd  Decimal      @default(0) @db.Decimal(12, 4)
+  requestPerMinuteLimit Int         @default(120)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  tenants              Tenant[]
+  subscriptions        Subscription[]
+}
+
+model Subscription {
+  id                  String             @id @default(cuid())
+  tenantId            String
+  planId              String
+  status              SubscriptionStatus @default(TRIAL)
+  startsAt            DateTime           @default(now())
+  endsAt              DateTime?
+  trialEndsAt         DateTime?
+  canceledAt          DateTime?
+  metadata            Json?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan                Plan               @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+model BillingEvent {
+  id          String           @id @default(cuid())
+  tenantId    String
+  type        BillingEventType
+  title       String
+  description String?
+  metadata    Json?
+  createdById String?
+  createdAt   DateTime         @default(now())
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
+
+model Provider {
+  id                  String            @id @default(cuid())
+  tenantId            String?
+  name                String
+  slug                String
+  type                ProviderType      @default(OPENAI_COMPATIBLE)
+  baseUrl             String
+  authType            ProviderAuthType  @default(BEARER)
+  apiKeyEncrypted     String
+  apiKeyHint          String?
+  customHeaders       Json?
+  timeoutMs           Int               @default(60000)
+  retryAttempts       Int               @default(2)
+  priority            Int               @default(100)
+  status              ProviderStatus    @default(ACTIVE)
+  healthStatus        String?           @default("unknown")
+  supportsResponses   Boolean           @default(true)
+  supportsChat        Boolean           @default(true)
+  supportsEmbeddings  Boolean           @default(false)
+  supportsTools       Boolean           @default(true)
+  supportsStreaming   Boolean           @default(true)
+  supportsMultimodal  Boolean           @default(false)
+  notes               String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  tenant              Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  models              Model[]
+  agents              Agent[]
+  conversations       Conversation[]
+  apiRequestLogs      ApiRequestLog[]
+
+  @@unique([tenantId, slug])
+  @@index([status, priority])
+}
+
+model Model {
+  id                     String         @id @default(cuid())
+  tenantId               String?
+  providerId             String
+  technicalName          String
+  displayName            String
+  slug                   String
+  category               ModelCategory
+  isActive               Boolean        @default(true)
+  isDefault              Boolean        @default(false)
+  maxContextTokens       Int            @default(8192)
+  maxOutputTokens        Int            @default(2048)
+  inputCostPer1kUsd      Decimal        @default(0) @db.Decimal(12, 6)
+  outputCostPer1kUsd     Decimal        @default(0) @db.Decimal(12, 6)
+  cacheCostPer1kUsd      Decimal        @default(0) @db.Decimal(12, 6)
+  supportsTools          Boolean        @default(true)
+  supportsReasoning      Boolean        @default(false)
+  supportsEmbeddings     Boolean        @default(false)
+  supportsStreaming      Boolean        @default(true)
+  tenantLimits           Json?
+  notes                  String?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  provider               Provider       @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  tenant                 Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agents                 Agent[]
+  promptBenchmarks       PromptBenchmark[]
+  modelBenchmarks        ModelBenchmark[]
+  conversations          Conversation[]
+  apiRequestLogs         ApiRequestLog[]
+
+  @@unique([providerId, technicalName])
+  @@unique([tenantId, slug])
+  @@index([isActive, category])
+}
+
+model Agent {
+  id                    String        @id @default(cuid())
+  tenantId              String?
+  name                  String
+  slug                  String
+  description           String
+  objective             String
+  category              String
+  personality           String?
+  defaultLanguage       String        @default("pt-BR")
+  systemPrompt          String
+  rigidInstructions     String?
+  prohibitiveRules      String?
+  fallbackBehavior      String?
+  defaultModelId        String?
+  defaultProviderId     String?
+  temperature           Float         @default(0.2)
+  topP                  Float?
+  maxTokens             Int           @default(1024)
+  securityPolicies      Json?
+  status                AgentStatus   @default(DRAFT)
+  scope                 AgentScope    @default(TENANT)
+  version               Int           @default(1)
+  publishedAt           DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  tenant                Tenant?       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  defaultModel          Model?        @relation(fields: [defaultModelId], references: [id], onDelete: SetNull)
+  defaultProvider       Provider?     @relation(fields: [defaultProviderId], references: [id], onDelete: SetNull)
+  versions              AgentVersion[]
+  prompts               Prompt[]
+  conversations         Conversation[]
+  toolMappings          AgentTool[]
+  knowledgeMappings     AgentKnowledge[]
+  toolExecutions        ToolExecution[]
+  apiRequestLogs        ApiRequestLog[]
+  handoffRecords        HandoffRecord[]
+
+  @@unique([tenantId, slug])
+  @@index([status, scope])
+}
+
+model AgentVersion {
+  id              String   @id @default(cuid())
+  agentId         String
+  version         Int
+  snapshot        Json
+  changelog       String?
+  createdById     String?
+  createdAt       DateTime @default(now())
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, version])
+}
+
+model Prompt {
+  id              String       @id @default(cuid())
+  tenantId        String?
+  agentId         String?
+  name            String
+  slug            String
+  type            PromptType
+  scope           AgentScope   @default(TENANT)
+  status          PromptStatus @default(DRAFT)
+  activeVersionId String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  tenant          Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent           Agent?       @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  versions        PromptVersion[]
+
+  @@unique([tenantId, slug])
+  @@index([type, status])
+}
+
+model PromptVersion {
+  id                  String       @id @default(cuid())
+  promptId            String
+  version             Int
+  content             String
+  supportedVariables  Json?
+  changelog           String?
+  internalNotes       String?
+  status              PromptStatus @default(DRAFT)
+  authorId            String
+  publishedAt         DateTime?
+  createdAt           DateTime     @default(now())
+  prompt              Prompt       @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  author              User         @relation("PromptVersionAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  benchmarks          PromptBenchmark[]
+
+  @@unique([promptId, version])
+  @@index([status, publishedAt])
+}
+
+model KnowledgeDocument {
+  id                  String            @id @default(cuid())
+  tenantId            String?
+  title               String
+  slug                String
+  category            String
+  description         String?
+  tags                Json?
+  rawContent          String?
+  processedContent    String?
+  fileType            String
+  fileSize            Int               @default(0)
+  language            String            @default("pt-BR")
+  status              DocumentStatus    @default(DRAFT)
+  version             Int               @default(1)
+  source              String?
+  visibility          DocumentVisibility @default(TENANT)
+  approved            Boolean           @default(false)
+  sensitivity         DataSensitivity   @default(INTERNAL)
+  metadata            Json?
+  storagePath         String?
+  fileHash            String?
+  uploadedById        String?
+  uploadedAt          DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  publishedAt         DateTime?
+  indexedAt           DateTime?
+  deletedAt           DateTime?
+  tenant              Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedBy          User?             @relation("DocumentAuthor", fields: [uploadedById], references: [id], onDelete: SetNull)
+  chunks              KnowledgeChunk[]
+  embeddingJobs       EmbeddingJob[]
+  agentMappings       AgentKnowledge[]
+
+  @@unique([tenantId, slug])
+  @@index([status, category])
+}
+
+model KnowledgeChunk {
+  id            String    @id @default(cuid())
+  tenantId      String?
+  documentId    String
+  chunkIndex    Int
+  content       String
+  tokenCount    Int       @default(0)
+  embedding     Float[]
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document      KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@index([tenantId, documentId])
+}
+
+model EmbeddingJob {
+  id                String            @id @default(cuid())
+  tenantId          String?
+  documentId        String
+  status            EmbeddingJobStatus @default(PENDING)
+  chunkSize         Int               @default(800)
+  overlap           Int               @default(120)
+  strategy          String            @default("paragraph")
+  embeddingModel    String
+  queuePriority     Int               @default(5)
+  retries           Int               @default(0)
+  errorMessage      String?
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  tenant            Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document          KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([status, queuePriority])
+  @@index([tenantId, documentId])
+}
+
+model Conversation {
+  id                   String            @id @default(cuid())
+  tenantId             String
+  userId               String?
+  channel              ChannelType       @default(DASHBOARD)
+  agentId              String?
+  providerId           String?
+  modelId              String?
+  apiKeyId             String?
+  status               ConversationStatus @default(OPEN)
+  effectivePrompt      String?
+  contextPayload       Json?
+  retrievedDocuments   Json?
+  toolCalls            Json?
+  latencyMs            Int?
+  inputTokens          Int               @default(0)
+  outputTokens         Int               @default(0)
+  totalCostUsd         Decimal           @default(0) @db.Decimal(12, 6)
+  errorType            String?
+  errorMessage         String?
+  feedbackTag          String?
+  resolution           String?
+  escalatedToHuman     Boolean           @default(false)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  tenant               Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                 User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  agent                Agent?            @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  provider             Provider?         @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  model                Model?            @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  apiKey               ApiKey?           @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  messages             ConversationMessage[]
+  toolExecutions       ToolExecution[]
+  handoffRecords       HandoffRecord[]
+  feedbacks            Feedback[]
+  apiRequestLogs       ApiRequestLog[]
+
+  @@index([tenantId, createdAt])
+  @@index([status])
+}
+
+model ConversationMessage {
+  id              String      @id @default(cuid())
+  conversationId  String
+  sequence        Int
+  role            MessageRole
+  content         String
+  toolName        String?
+  toolCallId      String?
+  metadata        Json?
+  tokenCount      Int         @default(0)
+  costUsd         Decimal     @default(0) @db.Decimal(12, 6)
+  createdAt       DateTime    @default(now())
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  feedbacks       Feedback[]
+
+  @@unique([conversationId, sequence])
+  @@index([conversationId, createdAt])
+}
+
+model ToolDefinition {
+  id                String      @id @default(cuid())
+  tenantId          String?
+  name              String
+  slug              String
+  description       String
+  inputSchema       Json
+  outputSchema      Json
+  timeoutMs         Int         @default(15000)
+  status            ToolStatus  @default(ACTIVE)
+  failureStrategy   String?     @default("fallback")
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  tenant            Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agentMappings     AgentTool[]
+  executions        ToolExecution[]
+
+  @@unique([tenantId, slug])
+  @@index([status])
+}
+
+model AgentTool {
+  agentId      String
+  toolId       String
+  createdAt    DateTime      @default(now())
+  agent        Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  tool         ToolDefinition @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@id([agentId, toolId])
+}
+
+model AgentKnowledge {
+  agentId      String
+  documentId   String
+  createdAt    DateTime          @default(now())
+  agent        Agent             @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  document     KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([agentId, documentId])
+}
+
+model ToolExecution {
+  id              String      @id @default(cuid())
+  toolId          String
+  tenantId        String?
+  agentId         String?
+  conversationId  String?
+  status          String
+  inputPayload    Json
+  outputPayload   Json?
+  errorMessage    String?
+  latencyMs       Int?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  tool            ToolDefinition @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  tenant          Tenant?     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent           Agent?      @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  conversation    Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([toolId, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model ApiKey {
+  id                  String      @id @default(cuid())
+  tenantId            String
+  name                String
+  prefix              String
+  keyHash             String      @unique
+  scopes              Json
+  environment         String      @default("production")
+  status              ApiKeyStatus @default(ACTIVE)
+  monthlyRequestLimit Int?
+  monthlyCostLimitUsd Decimal?    @db.Decimal(12, 4)
+  lastUsedAt          DateTime?
+  notes               String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  revokedAt           DateTime?
+  tenant              Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversations       Conversation[]
+  usageRecords        UsageRecord[]
+  requestLogs         ApiRequestLog[]
+
+  @@index([tenantId, status])
+}
+
+model UsageRecord {
+  id              String         @id @default(cuid())
+  tenantId        String
+  apiKeyId        String?
+  userId          String?
+  agentId         String?
+  providerId      String?
+  modelId         String?
+  channel         ChannelType?
+  metricType      UsageMetricType
+  inputTokens     Int            @default(0)
+  outputTokens    Int            @default(0)
+  totalTokens     Int            @default(0)
+  requests        Int            @default(0)
+  costUsd         Decimal        @default(0) @db.Decimal(12, 6)
+  periodStart     DateTime
+  periodEnd       DateTime
+  metadata        Json?
+  createdAt       DateTime       @default(now())
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  apiKey          ApiKey?        @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, periodStart])
+  @@index([metricType])
+}
+
+model ApiRequestLog {
+  id                String      @id @default(cuid())
+  requestId         String      @unique
+  tenantId          String?
+  userId            String?
+  apiKeyId          String?
+  providerId        String?
+  modelId           String?
+  agentId           String?
+  conversationId    String?
+  endpoint          String
+  method            String
+  channel           ChannelType @default(API)
+  success           Boolean
+  statusCode        Int
+  inputTokens       Int         @default(0)
+  outputTokens      Int         @default(0)
+  totalCostUsd      Decimal     @default(0) @db.Decimal(12, 6)
+  latencyMs         Int
+  errorType         String?
+  errorMessage      String?
+  fallbackTriggered Boolean     @default(false)
+  handoffTriggered  Boolean     @default(false)
+  metadata          Json?
+  createdAt         DateTime    @default(now())
+  tenant            Tenant?     @relation("RequestTenant", fields: [tenantId], references: [id], onDelete: SetNull)
+  user              User?       @relation("RequestActor", fields: [userId], references: [id], onDelete: SetNull)
+  apiKey            ApiKey?     @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  provider          Provider?   @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  model             Model?      @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  agent             Agent?      @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  conversation      Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([endpoint, createdAt])
+  @@index([success])
+}
+
+model AuditLog {
+  id          String        @id @default(cuid())
+  tenantId    String?
+  userId      String?
+  action      String
+  entityType  String
+  entityId    String?
+  severity    AuditSeverity @default(MEDIUM)
+  message     String
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime      @default(now())
+  tenant      Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([action, entityType])
+  @@index([severity])
+}
+
+model Feedback {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  conversationId      String
+  messageId           String?
+  userId              String?
+  rating              Int
+  comment             String?
+  hallucinationScore  Int?
+  utilityScore        Int?
+  adherenceScore      Int?
+  safetyScore         Int?
+  createdAt           DateTime @default(now())
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation        Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message             ConversationMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  user                User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+}
+
+model PromptBenchmark {
+  id             String   @id @default(cuid())
+  promptVersionId String
+  modelId        String
+  provider       String
+  avgLatencyMs   Int
+  avgScore       Float
+  createdAt      DateTime @default(now())
+
+  promptVersion  PromptVersion @relation(fields: [promptVersionId], references: [id], onDelete: Cascade)
+  model          Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@index([promptVersionId, createdAt])
+  @@index([modelId, createdAt])
+}
+
+model ModelBenchmark {
+  id             String   @id @default(cuid())
+  modelId        String
+  datasetName    String
+  safetyScore    Float
+  qualityScore   Float
+  costScore      Float
+  createdAt      DateTime @default(now())
+
+  model          Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@index([modelId, createdAt])
+}
+
+model Alert {
+  id           String      @id @default(cuid())
+  tenantId     String?
+  type         String
+  title        String
+  description  String
+  status       AlertStatus @default(OPEN)
+  severity     AuditSeverity @default(MEDIUM)
+  currentValue Float?
+  threshold    Float?
+  createdAt    DateTime    @default(now())
+  resolvedAt   DateTime?
+  tenant       Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String
+  value       Json
+  tenantId    String?
+  agentId     String?
+  providerId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([key, tenantId, agentId, providerId])
+  @@index([key])
+}
+
+model FeatureFlag {
+  id          String            @id @default(cuid())
+  key         String
+  description String?
+  scope       FeatureFlagScope  @default(GLOBAL)
+  enabled     Boolean           @default(false)
+  tenantId    String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  tenant      Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([key, tenantId])
+  @@index([scope, enabled])
+}
+
+model HandoffRecord {
+  id               String       @id @default(cuid())
+  tenantId         String
+  conversationId   String
+  agentId          String?
+  reason           String
+  riskCategory     String?
+  confidence       Float?
+  queueName        String?
+  summary          String
+  status           HandoffStatus @default(PENDING)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  tenant           Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  agent            Agent?       @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+}
