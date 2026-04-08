@@ -3,7 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 const sessionCookieName = process.env.SESSION_COOKIE_NAME ?? "identiq_session";
 
 function isProtectedPath(pathname: string) {
-  return pathname.startsWith("/plataforma") || pathname.startsWith("/api/internal");
+  return (
+    pathname.startsWith("/plataforma") ||
+    pathname.startsWith("/api/internal") ||
+    pathname === "/integracoes" ||
+    pathname === "/api-keys"
+  );
 }
 
 function redirectTo(request: NextRequest, pathname: string) {
@@ -15,6 +20,11 @@ function redirectTo(request: NextRequest, pathname: string) {
 export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const sessionCookie = request.cookies.get(sessionCookieName)?.value;
+
+  // A home precisa permanecer pública e nunca deve ser bloqueada aqui.
+  if (pathname === "/") {
+    return NextResponse.next();
+  }
 
   // Aliases comuns para evitar 404 em links antigos.
   if (pathname === "/dashboard") {
@@ -47,8 +57,11 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/dashboard",
     "/login",
+    "/integracoes",
+    "/api-keys",
     "/plataforma/:path*",
     "/api/internal/:path*",
     "/entrar",
