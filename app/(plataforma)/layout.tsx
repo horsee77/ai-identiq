@@ -2,6 +2,9 @@ import { ReactNode } from "react";
 import { requireSession } from "@/lib/auth/access";
 import { PlatformShell } from "@/components/layout/platform-shell";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function PlataformaLayout({ children }: { children: ReactNode }) {
   const context = await requireSession();
   const currentTenant =

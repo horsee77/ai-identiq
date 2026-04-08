@@ -1,7 +1,18 @@
-﻿import { z } from "zod";
+import { z } from "zod";
+
+const normalizedNodeEnvSchema = z
+  .string()
+  .default("development")
+  .transform((value) => {
+    const normalized = value.toLowerCase();
+    if (normalized === "development" || normalized === "test" || normalized === "production") {
+      return normalized as "development" | "test" | "production";
+    }
+    return "production";
+  });
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  NODE_ENV: normalizedNodeEnvSchema,
   APP_NAME: z.string().default("Identiq AI Platform"),
   APP_URL: z.string().url().default("http://localhost:3000"),
   DATABASE_URL: z.string().min(1).default("postgresql://postgres:postgres@localhost:5432/identiq"),
@@ -17,7 +28,7 @@ const envSchema = z.object({
   AI_LOCAL_EMBEDDING_DIMENSIONS: z.coerce.number().int().min(32).max(2048).default(192),
   ENCRYPTION_KEY: z.string().min(32).default("identiq-local-encryption-key-change-before-production"),
   MASTER_SEED_EMAIL: z.string().email().default("master@identiq.ai"),
-  MASTER_SEED_PASSWORD: z.string().min(8).default("Identiq@123456")
+  MASTER_SEED_PASSWORD: z.string().min(8).default("Identiq@123456"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -28,4 +39,3 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
-
