@@ -1,7 +1,12 @@
-﻿import "server-only";
-import { AgentResponseMode, IntentClassification, PolicyDecision, RuntimeSwitches } from "@/lib/ai/core-engine/types";
+import "server-only";
+import {
+  AgentResponseMode,
+  IntentClassification,
+  PolicyDecision,
+  RuntimeSwitches,
+} from "@/lib/ai/core-engine/types";
 
-const FORBIDDEN_ASSERTIONS = [
+const GLOBAL_FORBIDDEN_ASSERTION_PATTERNS = [
   "aprovar documento",
   "documento aprovado",
   "documento reprovado",
@@ -9,16 +14,17 @@ const FORBIDDEN_ASSERTIONS = [
   "face match aprovado",
   "score de risco final",
   "compliance garantido",
+  "conformidade absoluta",
 ];
 
 const SENSITIVE_DATA_PATTERNS = [
   "cpf",
   "rg",
   "passaporte",
-  "biometria",
   "selfie",
   "documento completo",
   "dados pessoais",
+  "biometria",
 ];
 
 function normalize(text: string) {
@@ -29,20 +35,12 @@ function normalize(text: string) {
     .trim();
 }
 
-function detectForbiddenAssertion(text: string) {
+function detectByPattern(text: string, patterns: string[]) {
   const normalized = normalize(text);
-  return FORBIDDEN_ASSERTIONS.some((pattern) => normalized.includes(pattern));
+  return patterns.find((pattern) => normalized.includes(pattern));
 }
 
-function detectSensitiveDataRequest(text: string) {
-  const normalized = normalize(text);
-  return SENSITIVE_DATA_PATTERNS.some((pattern) => normalized.includes(pattern));
-}
-
-function selectResponseMode(
-  classification: IntentClassification,
-  runtime: RuntimeSwitches
-): AgentResponseMode {
+function selectResponseMode(classification: IntentClassification, runtime: RuntimeSwitches): AgentResponseMode {
   if (runtime.strictTemplatesOnly) {
     return "STRICT_TEMPLATE_MODE";
   }
@@ -51,11 +49,23 @@ function selectResponseMode(
     return "STRICT_TEMPLATE_MODE";
   }
 
+  if (classification.allowedResponseMode === "restricted") {
+    return "STRICT_TEMPLATE_MODE";
+  }
+
+  if (
+    classification.allowedResponseMode === "enriched" &&
+    runtime.defaultResponseMode === "ENRICHED_MODE" &&
+    runtime.allowEnrichment
+  ) {
+    return "ENRICHED_MODE";
+  }
+
   if (runtime.defaultResponseMode === "ENRICHED_MODE" && runtime.allowEnrichment) {
     return "ENRICHED_MODE";
   }
 
-  return runtime.defaultResponseMode;
+  return "KNOWLEDGE_COMPOSER_MODE";
 }
 
 export function evaluatePolicy({
@@ -68,34 +78,58 @@ export function evaluatePolicy({
   runtime: RuntimeSwitches;
 }): PolicyDecision {
   const notices: string[] = [];
-  const forbiddenAssertion = detectForbiddenAssertion(message);
-  const sensitiveRequest = detectSensitiveDataRequest(message);
+  const appliedPolicies: string[] = [];
+
+  const forbiddenAssertion = detectByPattern(message, GLOBAL_FORBIDDEN_ASSERTION_PATTERNS);
+  const sensitiveRequest = detectByPattern(message, SENSITIVE_DATA_PATTERNS);
   const responseMode = selectResponseMode(classification, runtime);
 
   if (forbiddenAssertion) {
-    notices.push("Resposta restrita por guardrail de decisão sensível.");
+    notices.push("Guardrail aplicado: afirmacao sensivel bloqueada para resposta final.");
+    appliedPolicies.push(`policy.forbidden_assertion:${forbiddenAssertion}`);
   }
 
   if (sensitiveRequest) {
-    notices.push("Dados sensíveis detectados: aplicar mascaramento e cautela.");
+    notices.push("Guardrail aplicado: pedido com dado sensivel exige mascaramento e contexto minimo.");
+    appliedPolicies.push(`policy.sensitive_data:${sensitiveRequest}`);
   }
 
-  const strictSafety = runtime.safetyLevel === "STRICT";
-  const elevatedSafety = runtime.safetyLevel === "ELEVATED";
   const highRiskIntent = classification.criticality === "HIGH" || classification.criticality === "CRITICAL";
 
-  const mustHandoff =
-    classification.requiresHandoff ||
-    forbiddenAssertion ||
-    (strictSafety && highRiskIntent) ||
-    (elevatedSafety && classification.confidence < 0.55);
+  if (runtime.safetyLevel === "STRICT") {
+    appliedPolicies.push("policy.safety_level:STRICT");
+  } else if (runtime.safetyLevel === "ELEVATED") {
+    appliedPolicies.push("policy.safety_level:ELEVATED");
+  }
 
-  const canRespond = !forbiddenAssertion || classification.intent === "solicitar_humano";
+  let mustHandoff = classification.intent === "handoff_humano" || classification.requiresHandoff;
+  let restrictionReason: string | undefined;
+
+  if (!mustHandoff && runtime.safetyLevel === "STRICT" && highRiskIntent && classification.confidence < 0.62) {
+    mustHandoff = true;
+    restrictionReason =
+      "Nivel de seguranca STRICT acionou revisao humana para evitar afirmacao indevida em contexto sensivel.";
+    appliedPolicies.push("policy.strict_handoff");
+  }
+
+  if (!mustHandoff && runtime.safetyLevel === "ELEVATED" && highRiskIntent && classification.confidence < 0.52) {
+    mustHandoff = true;
+    restrictionReason = "Confianca moderada em contexto sensivel; revisao humana complementar requerida.";
+    appliedPolicies.push("policy.elevated_handoff");
+  }
+
+  if (!mustHandoff && Boolean(forbiddenAssertion)) {
+    mustHandoff = true;
+    restrictionReason = "Solicitacao inclui afirmacao que viola guardrails institucionais obrigatorios.";
+    appliedPolicies.push("policy.guardrail_handoff");
+  }
+
+  const canRespond = true;
 
   const requiresKnowledge =
     classification.requiresRag ||
     runtime.knowledgeRequiredCategories.length > 0 ||
-    responseMode === "KNOWLEDGE_COMPOSER_MODE";
+    responseMode !== "STRICT_TEMPLATE_MODE";
 
   return {
     canRespond,
@@ -103,7 +137,7 @@ export function evaluatePolicy({
     responseMode,
     requiresKnowledge,
     safetyNotices: notices,
-    restrictionReason: !canRespond ? "Política de segurança impede resposta direta." : undefined,
+    appliedPolicies,
+    restrictionReason,
   };
 }
-

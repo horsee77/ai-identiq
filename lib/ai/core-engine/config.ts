@@ -15,6 +15,7 @@ export const AI_RUNTIME_SETTING_KEYS = {
   safetyLevel: "ai.safety_level",
   knowledgeRequiredCategories: "ai.knowledge_required_categories",
   defaultResponseMode: "ai.default_response_mode",
+  debugMode: "ai.debug_mode",
   localLlmProviderId: "ai.local_llm_provider_id",
   externalProviderId: "ai.external_provider_id",
 } as const;
@@ -31,6 +32,7 @@ export const AI_RUNTIME_DEFAULTS: RuntimeSwitches = {
   safetyLevel: "BALANCED",
   knowledgeRequiredCategories: [],
   defaultResponseMode: "KNOWLEDGE_COMPOSER_MODE",
+  debugMode: false,
   localLlmProviderId: undefined,
   externalProviderId: undefined,
 };
@@ -183,6 +185,10 @@ export async function getAiRuntimeConfig({
       map.get(AI_RUNTIME_SETTING_KEYS.defaultResponseMode),
       AI_RUNTIME_DEFAULTS.defaultResponseMode
     ),
+    debugMode: toBoolean(
+      map.get(AI_RUNTIME_SETTING_KEYS.debugMode),
+      AI_RUNTIME_DEFAULTS.debugMode
+    ),
     localLlmProviderId:
       typeof map.get(AI_RUNTIME_SETTING_KEYS.localLlmProviderId) === "string"
         ? (map.get(AI_RUNTIME_SETTING_KEYS.localLlmProviderId) as string)
@@ -249,6 +255,9 @@ export async function upsertAiRuntimeConfig(input: UpsertAiRuntimeConfigInput) {
   }
   if (input.values.defaultResponseMode !== undefined) {
     entries.push([AI_RUNTIME_SETTING_KEYS.defaultResponseMode, input.values.defaultResponseMode]);
+  }
+  if (input.values.debugMode !== undefined) {
+    entries.push([AI_RUNTIME_SETTING_KEYS.debugMode, input.values.debugMode]);
   }
   if (input.values.localLlmProviderId !== undefined) {
     entries.push([AI_RUNTIME_SETTING_KEYS.localLlmProviderId, input.values.localLlmProviderId]);

@@ -1,185 +1,22 @@
 import "server-only";
+import { getIntentContract, listIntentContracts } from "@/lib/ai/core-engine/intent-contracts";
 import { CoreIntent, IntentClassification, RuntimeSwitches } from "@/lib/ai/core-engine/types";
 
-type IntentRule = {
+type ScoredIntent = {
   intent: CoreIntent;
-  keywords: string[];
-  weight: number;
-  criticality: IntentClassification["criticality"];
-  requiresRag: boolean;
-  requiresHandoff?: boolean;
-  allowedResponseMode: IntentClassification["allowedResponseMode"];
+  score: number;
+  matchedKeywords: string[];
+  matchedPatterns: string[];
 };
 
-const INTENT_RULES: IntentRule[] = [
-  {
-    intent: "solicitar_humano",
-    keywords: [
-      "atendente",
-      "humano",
-      "especialista",
-      "analista",
-      "falar com pessoa",
-      "falar com atendente",
-      "quero falar com humano",
-      "transferir atendimento",
-      "me transfere",
-    ],
-    weight: 6,
-    criticality: "HIGH",
-    requiresRag: false,
-    requiresHandoff: true,
-    allowedResponseMode: "restricted",
-  },
-  {
-    intent: "caso_critico",
-    keywords: [
-      "fraude",
-      "urgente",
-      "risco alto",
-      "vazamento",
-      "incidente",
-      "suspeita grave",
-      "vazou dado",
-      "conta comprometida",
-    ],
-    weight: 6,
-    criticality: "CRITICAL",
-    requiresRag: true,
-    requiresHandoff: true,
-    allowedResponseMode: "restricted",
-  },
-  {
-    intent: "validacao_documental",
-    keywords: ["documento", "documental", "aprovar documento", "reprovar documento", "documentoscopia"],
-    weight: 5,
-    criticality: "HIGH",
-    requiresRag: true,
-    allowedResponseMode: "knowledge_composer",
-  },
-  {
-    intent: "biometria",
-    keywords: ["biometria", "face match", "selfie", "liveness", "prova de vida"],
-    weight: 5,
-    criticality: "HIGH",
-    requiresRag: true,
-    allowedResponseMode: "knowledge_composer",
-  },
-  {
-    intent: "compliance",
-    keywords: ["compliance", "regulatorio", "conformidade", "norma", "governanca", "lgpd"],
-    weight: 5,
-    criticality: "HIGH",
-    requiresRag: true,
-    allowedResponseMode: "knowledge_composer",
-  },
-  {
-    intent: "aml",
-    keywords: ["aml", "lavagem de dinheiro", "pep", "sancoes", "lista restritiva"],
-    weight: 5,
-    criticality: "HIGH",
-    requiresRag: true,
-    allowedResponseMode: "knowledge_composer",
-  },
-  {
-    intent: "kyc",
-    keywords: ["kyc", "conheca seu cliente", "know your customer"],
-    weight: 4,
-    criticality: "MEDIUM",
-    requiresRag: true,
-    allowedResponseMode: "knowledge_composer",
-  },
-  {
-    intent: "onboarding",
-    keywords: ["onboarding", "cadastro", "abertura de conta", "ativacao", "entrada de cliente"],
-    weight: 4,
-    criticality: "MEDIUM",
-    requiresRag: true,
-    allowedResponseMode: "knowledge_composer",
-  },
-  {
-    intent: "suporte",
-    keywords: ["erro", "bug", "suporte", "falha", "nao funciona", "instavel", "indisponivel"],
-    weight: 4,
-    criticality: "MEDIUM",
-    requiresRag: true,
-    allowedResponseMode: "knowledge_composer",
-  },
-  {
-    intent: "integracao",
-    keywords: ["api", "integracao", "webhook", "sdk", "endpoint", "payload", "token"],
-    weight: 4,
-    criticality: "MEDIUM",
-    requiresRag: true,
-    allowedResponseMode: "knowledge_composer",
-  },
-  {
-    intent: "comercial",
-    keywords: ["preco", "plano", "proposta", "comercial", "contrato", "cotacao", "orcamento"],
-    weight: 3,
-    criticality: "MEDIUM",
-    requiresRag: false,
-    allowedResponseMode: "template_only",
-  },
-  {
-    intent: "institucional",
-    keywords: [
-      "identiq",
-      "empresa",
-      "institucional",
-      "sobre voces",
-      "sobre a identiq",
-      "quem e a identiq",
-      "o que a identiq faz",
-      "conhece a identiq",
-      "quem sao voces",
-    ],
-    weight: 3,
-    criticality: "LOW",
-    requiresRag: false,
-    allowedResponseMode: "template_only",
-  },
-  {
-    intent: "faq",
-    keywords: ["faq", "pergunta frequente", "duvida comum", "como funciona"],
-    weight: 2,
-    criticality: "LOW",
-    requiresRag: true,
-    allowedResponseMode: "knowledge_composer",
-  },
-  {
-    intent: "duvida_operacional",
-    keywords: [
-      "procedimento",
-      "passo a passo",
-      "operacional",
-      "fluxo interno",
-      "playbook",
-      "treinar ia",
-      "alimentar ia",
-      "base de conhecimento",
-      "upload de arquivo",
-      "subir pdf",
-      "subir foto",
-      "documentacao interna",
-    ],
-    weight: 3,
-    criticality: "MEDIUM",
-    requiresRag: true,
-    allowedResponseMode: "knowledge_composer",
-  },
-  {
-    intent: "saudacao",
-    keywords: ["ola", "bom dia", "boa tarde", "boa noite", "oi", "hello", "e ai"],
-    weight: 2,
-    criticality: "LOW",
-    requiresRag: false,
-    allowedResponseMode: "template_only",
-  },
+const OUT_OF_SCOPE_SIGNALS = [
+  "horoscopo",
+  "fofoca",
+  "futebol",
+  "loteria",
+  "celebridade",
+  "jogo de azar",
 ];
-
-const GREETING_SIGNALS = ["ola", "oi", "bom dia", "boa tarde", "boa noite", "hello", "e ai"];
-const INTRO_SIGNALS = ["me chamo", "meu nome e", "sou o", "sou a", "sou "];
 
 function normalizeText(value: string) {
   return value
@@ -190,122 +27,119 @@ function normalizeText(value: string) {
     .trim();
 }
 
-function evaluateCriticality(intent: CoreIntent, confidence: number): IntentClassification["criticality"] {
-  if (intent === "caso_critico") return "CRITICAL";
-  if (intent === "solicitar_humano") return "HIGH";
-  if (confidence >= 0.78) return "MEDIUM";
-  return "LOW";
-}
-
 function inferOutOfScope(text: string) {
-  const nonScopeSignals = ["loteria", "futebol", "piada", "fofoca", "celebridade", "horoscopo"];
-  return nonScopeSignals.some((signal) => text.includes(signal));
+  return OUT_OF_SCOPE_SIGNALS.some((signal) => text.includes(signal));
 }
 
-function inferGreetingOrIntroduction(text: string) {
-  const isGreeting = GREETING_SIGNALS.some((signal) => text.includes(signal));
-  const hasIntro = INTRO_SIGNALS.some((signal) => text.includes(signal));
-  const wordCount = text.split(" ").filter(Boolean).length;
-  return (isGreeting || hasIntro) && wordCount <= 14;
-}
+function scoreIntent(text: string, intent: CoreIntent): ScoredIntent | null {
+  const contract = getIntentContract(intent);
+  const matchedKeywords = new Set<string>();
+  const matchedPatterns = new Set<string>();
+  let score = 0;
 
-export function classifyIntentLocally(
-  input: string,
-  runtime: RuntimeSwitches
-): IntentClassification {
-  const text = normalizeText(input);
-  const matches: { intent: CoreIntent; score: number; keyword: string; rule: IntentRule }[] = [];
-
-  for (const rule of INTENT_RULES) {
-    for (const keyword of rule.keywords) {
-      const normalizedKeyword = normalizeText(keyword);
-      if (!normalizedKeyword) continue;
-      if (text.includes(normalizedKeyword)) {
-        const keywordWeight = normalizedKeyword.split(" ").length > 1 ? 1.4 : 1;
-        matches.push({
-          intent: rule.intent,
-          score: rule.weight * keywordWeight,
-          keyword,
-          rule,
-        });
-      }
+  for (const keyword of contract.entryRules.keywords) {
+    const normalizedKeyword = normalizeText(keyword);
+    if (!normalizedKeyword || !text.includes(normalizedKeyword)) {
+      continue;
     }
+
+    matchedKeywords.add(keyword);
+    score += normalizedKeyword.includes(" ") ? 1.4 : 1;
+  }
+
+  for (const regex of contract.entryRules.regexes) {
+    if (!regex.test(text)) {
+      continue;
+    }
+
+    matchedPatterns.add(regex.source);
+    score += 2.1;
+  }
+
+  if (score < contract.entryRules.minScore) {
+    return null;
+  }
+
+  return {
+    intent,
+    score,
+    matchedKeywords: [...matchedKeywords],
+    matchedPatterns: [...matchedPatterns],
+  };
+}
+
+function classifyAsFallback(runtime: RuntimeSwitches, confidence: number): IntentClassification {
+  const contract = getIntentContract("faq_comercial");
+
+  return {
+    intent: "faq_comercial",
+    confidence,
+    criticality: contract.defaultCriticality,
+    requiresHandoff: false,
+    requiresRag: contract.entryRules.requiresRag,
+    allowedResponseMode: runtime.strictTemplatesOnly ? "template_only" : contract.allowedResponseMode,
+    matchedKeywords: [],
+    matchedPatterns: [],
+    reasoning: ["Fallback aplicado por baixa evidência de intenção específica."],
+  };
+}
+
+export function classifyIntentLocally(input: string, runtime: RuntimeSwitches): IntentClassification {
+  const text = normalizeText(input);
+
+  if (!text) {
+    return classifyAsFallback(runtime, 0.74);
   }
 
   if (inferOutOfScope(text)) {
     return {
-      intent: "fora_de_escopo",
-      confidence: 0.84,
-      criticality: "LOW",
-      requiresHandoff: false,
-      requiresRag: false,
-      allowedResponseMode: "restricted",
-      matchedKeywords: [],
+      ...classifyAsFallback(runtime, 0.55),
+      reasoning: ["Sinais fora de escopo detectados; resposta institucional neutra aplicada."],
     };
   }
 
-  if (!matches.length && inferGreetingOrIntroduction(text)) {
-    return {
-      intent: "saudacao",
-      confidence: 0.86,
-      criticality: "LOW",
-      requiresHandoff: false,
-      requiresRag: false,
-      allowedResponseMode: "template_only",
-      matchedKeywords: [],
-    };
+  const scored = listIntentContracts()
+    .map((contract) => scoreIntent(text, contract.intent))
+    .filter((entry): entry is ScoredIntent => entry !== null)
+    .sort((a, b) => b.score - a.score);
+
+  if (!scored.length) {
+    return classifyAsFallback(runtime, 0.72);
   }
 
-  if (!matches.length) {
-    return {
-      intent: "faq",
-      confidence: 0.5,
-      criticality: "LOW",
-      requiresHandoff: false,
-      requiresRag: true,
-      allowedResponseMode: runtime.strictTemplatesOnly ? "template_only" : "knowledge_composer",
-      matchedKeywords: [],
-    };
+  const best = scored[0];
+  const second = scored[1];
+  const secondScore = second?.score ?? 0;
+  const gap = Math.max(0, best.score - secondScore);
+  const confidence = Number(Math.min(0.97, 0.45 + best.score / 11 + gap / 18).toFixed(2));
+
+  const contract = getIntentContract(best.intent);
+  const requiresHandoff =
+    best.intent === "handoff_humano" ||
+    (contract.defaultCriticality !== "LOW" && confidence < contract.handoffPolicy.requestContextMin);
+
+  const reasoning = [
+    `Intent detectada por score combinado: ${best.score.toFixed(2)}.`,
+    `Gap competitivo: ${gap.toFixed(2)} contra segunda melhor hipótese.`,
+  ];
+
+  if (best.matchedKeywords.length) {
+    reasoning.push(`Palavras-chave: ${best.matchedKeywords.join(", ")}.`);
   }
 
-  const grouped = new Map<CoreIntent, { score: number; rule: IntentRule; matchedKeywords: string[] }>();
-  for (const entry of matches) {
-    const current = grouped.get(entry.intent);
-    if (!current) {
-      grouped.set(entry.intent, {
-        score: entry.score,
-        rule: entry.rule,
-        matchedKeywords: [entry.keyword],
-      });
-      continue;
-    }
-
-    current.score += entry.score;
-    if (!current.matchedKeywords.includes(entry.keyword)) {
-      current.matchedKeywords.push(entry.keyword);
-    }
+  if (best.matchedPatterns.length) {
+    reasoning.push(`Padroes regex: ${best.matchedPatterns.join(", ")}.`);
   }
-
-  const ranked = [...grouped.entries()].sort((a, b) => b[1].score - a[1].score);
-  const [bestIntent, bestData] = ranked[0];
-  const secondScore = ranked[1]?.[1].score ?? 0;
-  const relativeGap = Math.max(0, bestData.score - secondScore);
-  const baseConfidence = Math.min(0.95, 0.45 + bestData.score / 15 + relativeGap / 20);
-  const confidence = Number(baseConfidence.toFixed(2));
-
-  const criticality =
-    bestData.rule.criticality === "LOW"
-      ? evaluateCriticality(bestIntent, confidence)
-      : bestData.rule.criticality;
 
   return {
-    intent: bestIntent,
+    intent: best.intent,
     confidence,
-    criticality,
-    requiresHandoff:
-      Boolean(bestData.rule.requiresHandoff) || confidence < 0.45 || bestIntent === "caso_critico",
-    requiresRag: bestData.rule.requiresRag,
-    allowedResponseMode: bestData.rule.allowedResponseMode,
-    matchedKeywords: bestData.matchedKeywords,
+    criticality: contract.defaultCriticality,
+    requiresHandoff,
+    requiresRag: contract.entryRules.requiresRag,
+    allowedResponseMode: runtime.strictTemplatesOnly ? "template_only" : contract.allowedResponseMode,
+    matchedKeywords: best.matchedKeywords,
+    matchedPatterns: best.matchedPatterns,
+    reasoning,
   };
 }

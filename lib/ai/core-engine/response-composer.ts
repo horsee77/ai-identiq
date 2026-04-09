@@ -2,6 +2,7 @@ import "server-only";
 import { composeApprovedResponse } from "@/lib/ai/response-library/builders/compose";
 import {
   CoreComposedResponse,
+  HandoffDecision,
   IntentClassification,
   KnowledgeHit,
   PolicyDecision,
@@ -11,16 +12,20 @@ export function composeCoreResponse({
   classification,
   policy,
   knowledge,
+  handoff,
   agentName,
   userName,
   message,
+  userTurnCount,
 }: {
   classification: IntentClassification;
   policy: PolicyDecision;
   knowledge: KnowledgeHit[];
+  handoff: HandoffDecision;
   agentName: string;
   userName?: string;
   message: string;
+  userTurnCount: number;
 }): CoreComposedResponse {
   const composed = composeApprovedResponse({
     intent: classification.intent,
@@ -28,14 +33,16 @@ export function composeCoreResponse({
     agentName,
     userName,
     userMessage: message,
+    userTurnCount,
     knowledge,
     safetyNotices: policy.safetyNotices,
-    includeHandoffNotice: policy.mustHandoff,
+    handoff,
   });
 
   return {
     content: composed.content,
     usedBlocks: composed.usedBlocks,
     citedDocuments: composed.citedDocuments,
+    responseSections: composed.responseSections,
   };
 }

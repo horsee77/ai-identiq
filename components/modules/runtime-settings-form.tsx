@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ type RuntimeConfig = {
   safetyLevel: "STRICT" | "BALANCED" | "ELEVATED";
   knowledgeRequiredCategories: string[];
   defaultResponseMode: "STRICT_TEMPLATE_MODE" | "KNOWLEDGE_COMPOSER_MODE" | "ENRICHED_MODE";
+  debugMode: boolean;
   localLlmProviderId?: string;
   externalProviderId?: string;
 };
@@ -72,7 +73,7 @@ export function RuntimeSettingsForm({ initialConfig, agents, providers }: Props)
     setLoading(false);
 
     if (!response.ok || !payload?.ok) {
-      setError(payload?.error?.message ?? "Não foi possível carregar as configurações.");
+      setError(payload?.error?.message ?? "Nao foi possivel carregar as configuracoes.");
       return;
     }
 
@@ -110,27 +111,27 @@ export function RuntimeSettingsForm({ initialConfig, agents, providers }: Props)
     setSaving(false);
 
     if (!response.ok || !result?.ok) {
-      setError(result?.error?.message ?? "Falha ao salvar configurações.");
+      setError(result?.error?.message ?? "Falha ao salvar configuracoes.");
       return;
     }
 
     setConfig(result.data);
     setCategories((result.data.knowledgeRequiredCategories ?? []).join(", "));
-    setMessage("Configurações salvas com sucesso.");
+    setMessage("Configuracoes salvas com sucesso.");
   }
 
   return (
     <Card
-      title="Runtime de inteligência autônoma"
-      subtitle="Configuração por tenant/agente para operação local, segura e independente de provider externo."
+      title="Runtime de inteligencia autonoma"
+      subtitle="Configuracao por tenant/agente para operacao local, segura e independente de provider externo."
     >
       <div className="space-y-4">
         <div className="grid gap-3 md:grid-cols-2">
           <div>
-            <Label>Escopo de edição</Label>
+            <Label>Escopo de edicao</Label>
             <Select value={scope} onChange={(event) => setScope(event.target.value as "tenant" | "agent")}>
-              <option value="tenant">Tenant (padrão)</option>
-              <option value="agent">Agente específico</option>
+              <option value="tenant">Tenant (padrao)</option>
+              <option value="agent">Agente especifico</option>
             </Select>
           </div>
 
@@ -141,7 +142,7 @@ export function RuntimeSettingsForm({ initialConfig, agents, providers }: Props)
               onChange={(event) => setSelectedAgentId(event.target.value)}
               disabled={scope !== "agent" || !agents.length}
             >
-              {!agents.length && <option value="">Nenhum agente disponível</option>}
+              {!agents.length && <option value="">Nenhum agente disponivel</option>}
               {agents.map((agent) => (
                 <option key={agent.id} value={agent.id}>
                   {agent.name}
@@ -187,11 +188,16 @@ export function RuntimeSettingsForm({ initialConfig, agents, providers }: Props)
             checked={config.allowEnrichment}
             onChange={(value) => setConfig((prev) => ({ ...prev, allowEnrichment: value }))}
           />
+          <Toggle
+            label="Debug mode de pipeline"
+            checked={config.debugMode}
+            onChange={(value) => setConfig((prev) => ({ ...prev, debugMode: value }))}
+          />
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
           <div>
-            <Label>Modo de resposta padrão</Label>
+            <Label>Modo de resposta padrao</Label>
             <Select
               value={config.defaultResponseMode}
               onChange={(event) =>
@@ -207,7 +213,7 @@ export function RuntimeSettingsForm({ initialConfig, agents, providers }: Props)
             </Select>
           </div>
           <div>
-            <Label>Nível de segurança</Label>
+            <Label>Nivel de seguranca</Label>
             <Select
               value={config.safetyLevel}
               onChange={(event) =>
@@ -237,7 +243,7 @@ export function RuntimeSettingsForm({ initialConfig, agents, providers }: Props)
               value={config.localLlmProviderId ?? ""}
               onChange={(event) => setConfig((prev) => ({ ...prev, localLlmProviderId: event.target.value || undefined }))}
             >
-              <option value="">Não definido</option>
+              <option value="">Nao definido</option>
               {providers.map((provider) => (
                 <option key={provider.id} value={provider.id}>
                   {provider.name}
@@ -256,7 +262,7 @@ export function RuntimeSettingsForm({ initialConfig, agents, providers }: Props)
                 }))
               }
             >
-              <option value="">Não definido</option>
+              <option value="">Nao definido</option>
               {providers.map((provider) => (
                 <option key={provider.id} value={provider.id}>
                   {provider.name}
@@ -265,18 +271,18 @@ export function RuntimeSettingsForm({ initialConfig, agents, providers }: Props)
             </Select>
           </div>
           <div className="md:col-span-2">
-            <Label>Categorias obrigatórias de conhecimento (separadas por vírgula)</Label>
+            <Label>Categorias obrigatorias de conhecimento (separadas por virgula)</Label>
             <Input value={categories} onChange={(event) => setCategories(event.target.value)} />
           </div>
         </div>
 
-        {loading && <p className="text-xs text-zinc-500">Carregando configuração...</p>}
+        {loading && <p className="text-xs text-zinc-500">Carregando configuracao...</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
         {message && <p className="text-sm text-emerald-600">{message}</p>}
 
         <div className="flex items-center gap-2">
           <Button onClick={handleSave} disabled={saving || loading}>
-            {saving ? "Salvando..." : "Salvar configurações"}
+            {saving ? "Salvando..." : "Salvar configuracoes"}
           </Button>
           <Button variant="secondary" onClick={loadConfigForScope} disabled={loading}>
             Recarregar
@@ -286,4 +292,3 @@ export function RuntimeSettingsForm({ initialConfig, agents, providers }: Props)
     </Card>
   );
 }
-

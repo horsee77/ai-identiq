@@ -15,6 +15,7 @@ export const runtimeConfigPatchSchema = z.object({
   defaultResponseMode: z
     .enum(["STRICT_TEMPLATE_MODE", "KNOWLEDGE_COMPOSER_MODE", "ENRICHED_MODE"])
     .optional(),
+  debugMode: z.boolean().optional(),
   localLlmProviderId: z.string().cuid().nullable().optional(),
   externalProviderId: z.string().cuid().nullable().optional(),
 });

@@ -1,4 +1,4 @@
-﻿import { CoreIntent } from "@/lib/ai/core-engine/types";
+import { CoreIntent } from "@/lib/ai/core-engine/types";
 
 export type ApprovedTemplateBlock = {
   id: string;
@@ -12,192 +12,116 @@ export type ApprovedTemplateBlock = {
 
 export const COMMON_BLOCKS: ApprovedTemplateBlock[] = [
   {
-    id: "common.automation.notice",
-    category: "common",
-    subtype: "notice",
-    language: "pt-BR",
-    criticality: "LOW",
-    text: "Esta é uma resposta automatizada da Identiq AI Platform, com base em políticas internas.",
-  },
-  {
     id: "common.handoff.notice",
     category: "common",
     subtype: "handoff",
     language: "pt-BR",
     criticality: "HIGH",
-    text: "Para segurança e conformidade, este caso deve seguir para revisão humana especializada.",
+    text: "Para este ponto, o mais adequado e envolver um especialista da operacao para garantir analise correta e rastreavel.",
   },
   {
     id: "common.scope.limit",
     category: "common",
     subtype: "limitation",
     language: "pt-BR",
+    criticality: "HIGH",
+    text: "A resposta segue limites institucionais: sem aprovacao documental automatica, sem resultado inventado de biometria e sem declaracao de conformidade absoluta sem evidencia.",
+  },
+  {
+    id: "common.context.request",
+    category: "common",
+    subtype: "context",
+    language: "pt-BR",
     criticality: "MEDIUM",
-    text: "Não confirmamos decisões finais de validação documental, biometria, risco ou compliance sem base verificável.",
+    text: "Com um pouco mais de contexto do seu fluxo, consigo te entregar uma orientacao mais precisa e aplicavel.",
+  },
+  {
+    id: "common.caution.compliance",
+    category: "common",
+    subtype: "caution",
+    language: "pt-BR",
+    criticality: "HIGH",
+    text: "Este tema exige cautela regulatoria e validacao especializada quando houver risco elevado.",
   },
 ];
 
 export const INTENT_BLOCKS: Record<CoreIntent, ApprovedTemplateBlock[]> = {
-  saudacao: [
+  institucional_comercial: [
     {
-      id: "intent.saudacao.base",
-      category: "saudacao",
+      id: "intent.institucional_comercial.base",
+      category: "institucional_comercial",
+      subtype: "base",
+      language: "pt-BR",
+      criticality: "MEDIUM",
+      text: "A Identiq combina verificacao de identidade, KYC, biometria, validacao documental e prevencao a fraudes para operacoes que exigem seguranca, fluidez e escala.",
+    },
+  ],
+  faq_comercial: [
+    {
+      id: "intent.faq_comercial.base",
+      category: "faq_comercial",
       subtype: "base",
       language: "pt-BR",
       criticality: "LOW",
-      text: "Ola. Sou o {{agent_name}} da Identiq. Posso apoiar com onboarding, KYC, compliance, integracoes e operacao segura.",
-      placeholders: ["agent_name"],
+      text: "Posso te responder de forma objetiva sobre escopo, modelo de contratacao, implantacao e proximos passos comerciais da Identiq.",
     },
   ],
-  institucional: [
+  suporte_operacional: [
     {
-      id: "intent.institucional.base",
-      category: "institucional",
-      subtype: "base",
-      language: "pt-BR",
-      criticality: "LOW",
-      text: "A Identiq atua com verificação de identidade, KYC, biometria, validação documental, prevenção a fraudes e governança operacional.",
-    },
-  ],
-  comercial: [
-    {
-      id: "intent.comercial.base",
-      category: "comercial",
+      id: "intent.suporte_operacional.base",
+      category: "suporte_operacional",
       subtype: "base",
       language: "pt-BR",
       criticality: "MEDIUM",
-      text: "Para avaliação comercial, estruturamos proposta conforme volume, canais, requisitos regulatórios e SLA esperado.",
+      text: "Vamos direto ao ponto com triagem tecnica, causa provavel, evidencias necessarias e acao recomendada para estabilizar o fluxo.",
     },
   ],
-  suporte: [
+  integracoes_api: [
     {
-      id: "intent.suporte.base",
-      category: "suporte",
+      id: "intent.integracoes_api.base",
+      category: "integracoes_api",
       subtype: "base",
       language: "pt-BR",
       criticality: "MEDIUM",
-      text: "Vamos tratar seu caso de suporte com foco em diagnóstico, causa provável e próximos passos operacionais.",
+      text: "Para integracoes API, a recomendacao e estruturar autenticacao, contrato de payload, idempotencia, retry e observabilidade com request_id de ponta a ponta.",
     },
   ],
-  onboarding: [
+  onboarding_kyc: [
     {
-      id: "intent.onboarding.base",
-      category: "onboarding",
-      subtype: "base",
-      language: "pt-BR",
-      criticality: "MEDIUM",
-      text: "No onboarding corporativo, recomendamos fluxo em camadas: coleta, validação documental, biometria e revisão de risco quando aplicável.",
-    },
-  ],
-  kyc: [
-    {
-      id: "intent.kyc.base",
-      category: "kyc",
+      id: "intent.onboarding_kyc.base",
+      category: "onboarding_kyc",
       subtype: "base",
       language: "pt-BR",
       criticality: "HIGH",
-      text: "No contexto de KYC, a resposta deve seguir critérios institucionais e evidências de processo registradas no tenant.",
+      text: "No onboarding e KYC, seguimos validacao em camadas com evidencia, consistencia de dados, trilha auditavel e escalonamento quando houver risco.",
     },
   ],
-  validacao_documental: [
+  aml_compliance: [
     {
-      id: "intent.validacao_documental.base",
-      category: "validacao_documental",
+      id: "intent.aml_compliance.base",
+      category: "aml_compliance",
       subtype: "base",
       language: "pt-BR",
       criticality: "HIGH",
-      text: "Na validação documental, trabalhamos com consistência, legibilidade, autenticidade e trilha de auditoria. Decisão final exige base verificável.",
+      text: "Em AML e compliance, a orientacao e tecnica e cautelosa, sempre respeitando limites regulatórios e necessidade de validacao especializada.",
     },
   ],
-  biometria: [
+  handoff_humano: [
     {
-      id: "intent.biometria.base",
-      category: "biometria",
+      id: "intent.handoff_humano.base",
+      category: "handoff_humano",
       subtype: "base",
       language: "pt-BR",
       criticality: "HIGH",
-      text: "Em biometria e face match, respostas devem ser interpretativas e nunca conclusivas sem confirmação operacional do sistema.",
-    },
-  ],
-  compliance: [
-    {
-      id: "intent.compliance.base",
-      category: "compliance",
-      subtype: "base",
-      language: "pt-BR",
-      criticality: "HIGH",
-      text: "Em compliance, fornecemos orientação técnica e institucional, sem afirmar conformidade absoluta sem avaliação humana formal.",
-    },
-  ],
-  aml: [
-    {
-      id: "intent.aml.base",
-      category: "aml",
-      subtype: "base",
-      language: "pt-BR",
-      criticality: "HIGH",
-      text: "Para AML, recomendamos análise por indícios, contexto transacional e validação por equipe especializada em casos sensíveis.",
-    },
-  ],
-  integracao: [
-    {
-      id: "intent.integracao.base",
-      category: "integracao",
-      subtype: "base",
-      language: "pt-BR",
-      criticality: "MEDIUM",
-      text: "Para integração, validamos autenticação, contratos de payload, tratamento de erro e observabilidade ponta a ponta.",
-    },
-  ],
-  faq: [
-    {
-      id: "intent.faq.base",
-      category: "faq",
-      subtype: "base",
-      language: "pt-BR",
-      criticality: "LOW",
-      text: "Posso responder com base na base de conhecimento institucional e operacional disponível.",
-    },
-  ],
-  duvida_operacional: [
-    {
-      id: "intent.duvida_operacional.base",
-      category: "duvida_operacional",
-      subtype: "base",
-      language: "pt-BR",
-      criticality: "MEDIUM",
-      text: "Para dúvidas operacionais, seguimos playbooks internos e procedimentos aprovados por governança.",
-    },
-  ],
-  caso_critico: [
-    {
-      id: "intent.caso_critico.base",
-      category: "caso_critico",
-      subtype: "base",
-      language: "pt-BR",
-      criticality: "CRITICAL",
-      text: "Caso crítico detectado. A recomendação imediata é preservar contexto, registrar evidências e acionar análise humana.",
-    },
-  ],
-  solicitar_humano: [
-    {
-      id: "intent.solicitar_humano.base",
-      category: "solicitar_humano",
-      subtype: "base",
-      language: "pt-BR",
-      criticality: "HIGH",
-      text: "Entendido. Vamos encaminhar sua solicitação para atendimento humano.",
-    },
-  ],
-  fora_de_escopo: [
-    {
-      id: "intent.fora_de_escopo.base",
-      category: "fora_de_escopo",
-      subtype: "base",
-      language: "pt-BR",
-      criticality: "LOW",
-      text: "Este assunto está fora do escopo operacional da plataforma Identiq. Posso ajudar em KYC, onboarding, compliance, integrações e suporte técnico.",
+      text: "Entendi. Vou encaminhar seu caso com contexto consolidado para o especialista humano mais aderente ao tema.",
     },
   ],
 };
 
+const BLOCKS_BY_ID = new Map<string, ApprovedTemplateBlock>(
+  [...COMMON_BLOCKS, ...Object.values(INTENT_BLOCKS).flat()].map((block) => [block.id, block])
+);
+
+export function getApprovedTemplateBlockById(blockId: string) {
+  return BLOCKS_BY_ID.get(blockId);
+}

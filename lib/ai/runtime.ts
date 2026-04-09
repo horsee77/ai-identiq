@@ -1,4 +1,4 @@
-﻿import "server-only";
+import "server-only";
 import { ApiError } from "@/lib/api/errors";
 import { prisma } from "@/lib/db/prisma";
 import { executeCoreEnginePipeline } from "@/lib/ai/core-engine/router";
@@ -184,11 +184,26 @@ export async function runInference(payload: InferenceInput) {
     inputCostPer1kUsd: resolvedModel.inputCostPer1kUsd,
     outputCostPer1kUsd: resolvedModel.outputCostPer1kUsd,
   });
+
   const safeRequestMetadata = payload.requestMetadata
     ? JSON.parse(JSON.stringify(payload.requestMetadata))
     : undefined;
 
   const finalStatus = core.handoff.shouldHandoff ? "ESCALATED" : "RESOLVED";
+
+  const stageCostsUsd = {
+    ...core.debug.stageCostsUsd,
+    ...(core.externalLlmUsed
+      ? { L6_EXTERNAL_LLM: totalCost }
+      : core.localLlmUsed
+        ? { L5_LOCAL_LLM: totalCost }
+        : { L4_TEMPLATE: 0 }),
+  };
+
+  const debugTrace = {
+    ...core.debug,
+    stageCostsUsd,
+  };
 
   const conversation = await prisma.conversation.create({
     data: {
@@ -207,7 +222,9 @@ export async function runInference(payload: InferenceInput) {
         criticality: core.criticality,
         confidence: core.confidence,
         responseMode: core.responseMode,
+        handoffLevel: core.handoff.level,
         runtime,
+        debug: runtime.debugMode ? debugTrace : undefined,
         requestMetadata: safeRequestMetadata,
       },
       retrievedDocuments: core.knowledge,
@@ -248,7 +265,7 @@ export async function runInference(payload: InferenceInput) {
         tenantId: payload.tenantId,
         conversationId: conversation.id,
         agentId: agent?.id,
-        reason: core.handoff.reason ?? "Regra de segurança do core engine.",
+        reason: core.handoff.reason ?? "Regra de seguranca do core engine.",
         riskCategory: core.criticality.toLowerCase(),
         confidence: core.confidence,
         queueName: core.handoff.queueName ?? "analise-humana",
@@ -285,11 +302,13 @@ export async function runInference(payload: InferenceInput) {
         intent: core.intent,
         confidence: core.confidence,
         criticality: core.criticality,
+        handoffLevel: core.handoff.level,
         layers: core.layersUsed,
         usedBlocks: core.usedBlocks,
         localLlmUsed: core.localLlmUsed,
         externalLlmUsed: core.externalLlmUsed,
         autonomousMode: runtime.autonomousMode,
+        debug: runtime.debugMode ? debugTrace : undefined,
         requestMetadata: safeRequestMetadata,
       },
     },
@@ -315,10 +334,13 @@ export async function runInference(payload: InferenceInput) {
       metadata: {
         endpoint: payload.endpoint,
         intent: core.intent,
+        handoffLevel: core.handoff.level,
         requestMetadata: safeRequestMetadata,
       },
     },
   });
+
+  const exposeDebug = runtime.debugMode || payload.endpoint.includes("/internal/");
 
   return {
     model: {
@@ -346,6 +368,8 @@ export async function runInference(payload: InferenceInput) {
       usedBlocks: core.usedBlocks,
       localLlmUsed: core.localLlmUsed,
       externalLlmUsed: core.externalLlmUsed,
+      handoffLevel: core.handoff.level,
+      ...(exposeDebug ? { debug: debugTrace } : {}),
     },
   };
 }
@@ -440,7 +464,6 @@ export async function assertEmbeddingsModelAvailable(tenantId: string, modelName
   });
 
   if (model.id && !model.supportsEmbeddings) {
-    throw new ApiError("model_not_embedding", "O modelo informado não suporta embeddings.", 422);
+    throw new ApiError("model_not_embedding", "O modelo informado nao suporta embeddings.", 422);
   }
 }
-

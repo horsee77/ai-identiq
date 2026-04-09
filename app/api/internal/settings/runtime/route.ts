@@ -1,4 +1,4 @@
-﻿import { withApiHandler } from "@/lib/api/handler";
+import { withApiHandler } from "@/lib/api/handler";
 import { ok, fail } from "@/lib/api/response";
 import { requireInternalPermission } from "@/lib/api/internal-auth";
 import { getAiRuntimeConfig, upsertAiRuntimeConfig } from "@/lib/ai/core-engine/config";
@@ -24,7 +24,7 @@ export const PUT = withApiHandler(async (request, requestId) => {
   const parsed = runtimeConfigPatchSchema.safeParse(await request.json());
 
   if (!parsed.success) {
-    return fail(requestId, "invalid_payload", "Dados inválidos para configuração runtime.", 422, parsed.error.flatten());
+    return fail(requestId, "invalid_payload", "Dados invalidos para configuracao runtime.", 422, parsed.error.flatten());
   }
 
   const payload = parsed.data;
@@ -39,7 +39,7 @@ export const PUT = withApiHandler(async (request, requestId) => {
     });
 
     if (!agent) {
-      return fail(requestId, "not_found", "Agente não encontrado no contexto do tenant.", 404);
+      return fail(requestId, "not_found", "Agente nao encontrado no contexto do tenant.", 404);
     }
   }
 
@@ -58,6 +58,7 @@ export const PUT = withApiHandler(async (request, requestId) => {
       safetyLevel: payload.safetyLevel,
       knowledgeRequiredCategories: payload.knowledgeRequiredCategories,
       defaultResponseMode: payload.defaultResponseMode,
+      debugMode: payload.debugMode,
       localLlmProviderId: payload.localLlmProviderId ?? undefined,
       externalProviderId: payload.externalProviderId ?? undefined,
     },
@@ -75,7 +76,7 @@ export const PUT = withApiHandler(async (request, requestId) => {
     entityType: "Setting",
     entityId: payload.agentId ?? context.tenantId,
     severity: "HIGH",
-    message: "Configuração de runtime autônomo atualizada.",
+    message: "Configuracao de runtime autonomo atualizada.",
     metadata: {
       scope: payload.agentId ? "agent" : "tenant",
       agentId: payload.agentId,
@@ -85,4 +86,3 @@ export const PUT = withApiHandler(async (request, requestId) => {
 
   return ok(requestId, runtime);
 });
-

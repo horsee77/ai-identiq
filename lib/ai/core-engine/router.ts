@@ -1,17 +1,31 @@
-﻿import "server-only";
+import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { createProviderFromDatabase } from "@/lib/ai/providers/factory";
-import { searchKnowledgeBase } from "@/lib/knowledge/service";
+import { searchKnowledgeBaseWithDebug } from "@/lib/knowledge/service";
 import { classifyIntentLocally } from "@/lib/ai/core-engine/intent-classifier";
 import { evaluatePolicy } from "@/lib/ai/core-engine/policy-engine";
 import { buildContext } from "@/lib/ai/core-engine/context-builder";
 import { composeCoreResponse } from "@/lib/ai/core-engine/response-composer";
 import { calculateResponseConfidence } from "@/lib/ai/core-engine/confidence";
 import { decideHandoff } from "@/lib/ai/core-engine/handoff";
+import { getIntentContract } from "@/lib/ai/core-engine/intent-contracts";
 import { CoreEngineInput, CoreEngineResult } from "@/lib/ai/core-engine/types";
 
 function estimateTokens(text: string) {
   return Math.max(1, Math.ceil(text.length / 4));
+}
+
+function defaultKnowledgeDebug(runtimeLexical: boolean, runtimeSemantic: boolean): CoreEngineResult["debug"]["knowledge"] {
+  return {
+    retrievalStrategy: runtimeLexical && runtimeSemantic ? "hybrid" : runtimeLexical ? "lexical_only" : "semantic_only",
+    minScoreApplied: 0,
+    minLexicalApplied: 0,
+    selectedChunkIds: [],
+    ignoredChunks: [],
+    reranked: false,
+    categoryBoosts: {},
+    criticalTermHits: [],
+  } as const;
 }
 
 async function tryEnrichment({
@@ -66,15 +80,14 @@ async function tryEnrichment({
     }
 
     const enrichmentSystemPrompt =
-      "Você é um módulo de enriquecimento textual da Identiq. " +
-      "Mantenha a resposta factual, institucional e segura. " +
-      "Não invente aprovações, biometria, risco ou conformidade absoluta.";
+      "Voce e um modulo de enriquecimento textual da Identiq. " +
+      "Melhore clareza e objetividade sem alterar fatos, limites de seguranca ou decisoes de handoff.";
 
     const enrichmentUserPrompt = [
-      `Mensagem do usuário: ${userMessage}`,
+      `Mensagem do usuario: ${userMessage}`,
       "Resposta base controlada:",
       baseContent,
-      "Tarefa: melhorar clareza e organização, mantendo o mesmo conteúdo factual.",
+      "Tarefa: aumentar fluidez e organizacao sem criar afirmacoes novas.",
     ].join("\n\n");
 
     const output = provider.capabilities.responses
@@ -124,43 +137,93 @@ export async function executeCoreEnginePipeline(
     useRag?: boolean;
   }
 ): Promise<CoreEngineResult> {
+  const totalStart = Date.now();
+  const timings: CoreEngineResult["debug"]["timingsMs"] = {};
+  const stageCosts: CoreEngineResult["debug"]["stageCostsUsd"] = {
+    L1_INTENT: 0,
+    L2_POLICY: 0,
+    L3_KNOWLEDGE: 0,
+    L4_TEMPLATE: 0,
+    L5_LOCAL_LLM: 0,
+    L6_EXTERNAL_LLM: 0,
+  };
+
   const layersUsed: CoreEngineResult["layersUsed"] = ["L1_INTENT"];
+
   const context = buildContext({
     message: input.message,
     messages: input.messages,
     agentName: input.agent?.name,
   });
 
+  const intentStart = Date.now();
   const classification = classifyIntentLocally(input.message, input.runtime);
+  timings.L1_INTENT = Date.now() - intentStart;
+
+  const policyStart = Date.now();
   const policy = evaluatePolicy({
     message: input.message,
     classification,
     runtime: input.runtime,
   });
+  timings.L2_POLICY = Date.now() - policyStart;
   layersUsed.push("L2_POLICY");
 
+  const contract = getIntentContract(classification.intent);
   const shouldRetrieveKnowledge = policy.requiresKnowledge && input.useRag !== false;
 
-  const knowledge = shouldRetrieveKnowledge
-    ? await searchKnowledgeBase(input.tenantId, input.message, 5, {
-        lexicalSearchEnabled: input.runtime.lexicalSearchEnabled,
-        localSemanticEnabled: input.runtime.localEmbeddingsEnabled,
-        requiredCategories: input.runtime.knowledgeRequiredCategories,
-      })
-    : [];
+  let knowledge = [] as CoreEngineResult["knowledge"];
+  let knowledgeDebug = defaultKnowledgeDebug(
+    input.runtime.lexicalSearchEnabled,
+    input.runtime.localEmbeddingsEnabled
+  );
 
   if (shouldRetrieveKnowledge) {
+    const knowledgeStart = Date.now();
+    const searchResult = await searchKnowledgeBaseWithDebug(input.tenantId, input.message, contract.ragPolicy.topK, {
+      lexicalSearchEnabled: input.runtime.lexicalSearchEnabled,
+      localSemanticEnabled: input.runtime.localEmbeddingsEnabled,
+      requiredCategories:
+        input.runtime.knowledgeRequiredCategories.length > 0
+          ? input.runtime.knowledgeRequiredCategories
+          : contract.ragPolicy.preferredCategories,
+      intent: classification.intent,
+      minScore: contract.ragPolicy.minScore,
+      minLexicalScore: contract.ragPolicy.minLexicalScore,
+      topK: contract.ragPolicy.topK,
+    });
+
+    knowledge = searchResult.hits;
+    knowledgeDebug = searchResult.debug;
+    timings.L3_KNOWLEDGE = Date.now() - knowledgeStart;
     layersUsed.push("L3_KNOWLEDGE");
   }
 
+  const confidenceResult = calculateResponseConfidence({
+    classification,
+    knowledge,
+    policy,
+  });
+
+  const handoff = decideHandoff({
+    classification,
+    policy,
+    confidence: confidenceResult.score,
+    runtime: input.runtime,
+  });
+
+  const templateStart = Date.now();
   const composed = composeCoreResponse({
     classification,
     policy,
     knowledge,
+    handoff,
     agentName: context.agentName,
     userName: context.userName,
     message: context.latestUserMessage,
+    userTurnCount: context.userTurnCount,
   });
+  timings.L4_TEMPLATE = Date.now() - templateStart;
   layersUsed.push("L4_TEMPLATE");
 
   let finalContent = composed.content;
@@ -173,6 +236,7 @@ export async function executeCoreEnginePipeline(
 
   if (!input.runtime.autonomousMode && input.runtime.allowEnrichment && policy.responseMode === "ENRICHED_MODE") {
     if (input.runtime.localLlmEnabled) {
+      const localStart = Date.now();
       const local = await tryEnrichment({
         stage: "local",
         tenantId: input.tenantId,
@@ -184,6 +248,7 @@ export async function executeCoreEnginePipeline(
         temperature: input.temperature,
         maxTokens: input.maxTokens,
       });
+      timings.L5_LOCAL_LLM = Date.now() - localStart;
 
       if (local) {
         finalContent = local.content;
@@ -197,6 +262,7 @@ export async function executeCoreEnginePipeline(
     }
 
     if (input.runtime.externalProviderEnabled) {
+      const externalStart = Date.now();
       const external = await tryEnrichment({
         stage: "external",
         tenantId: input.tenantId,
@@ -208,6 +274,7 @@ export async function executeCoreEnginePipeline(
         temperature: input.temperature,
         maxTokens: input.maxTokens,
       });
+      timings.L6_EXTERNAL_LLM = Date.now() - externalStart;
 
       if (external) {
         finalContent = external.content;
@@ -221,24 +288,13 @@ export async function executeCoreEnginePipeline(
     }
   }
 
-  const confidence = calculateResponseConfidence({
-    classification,
-    knowledge,
-    policy,
-  });
-
-  const handoff = decideHandoff({
-    classification,
-    policy,
-    confidence,
-    runtime: input.runtime,
-  });
+  timings.TOTAL = Date.now() - totalStart;
 
   return {
     content: finalContent,
     intent: classification.intent,
     criticality: classification.criticality,
-    confidence,
+    confidence: confidenceResult.score,
     responseMode: policy.responseMode,
     layersUsed,
     usedBlocks: composed.usedBlocks,
@@ -250,6 +306,14 @@ export async function executeCoreEnginePipeline(
     externalLlmUsed,
     providerIdUsed,
     modelTechnicalNameUsed,
+    debug: {
+      intentReasoning: classification.reasoning,
+      confidenceReason: confidenceResult.reason,
+      policyBlocks: policy.appliedPolicies,
+      knowledge: knowledgeDebug,
+      handoffReason: handoff.reason,
+      timingsMs: timings,
+      stageCostsUsd: stageCosts,
+    },
   };
 }
-

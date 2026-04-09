@@ -11,14 +11,15 @@ export type BuiltContext = {
   conversationSummary: string;
   agentName: string;
   userName?: string;
+  userTurnCount: number;
 };
 
 const INTRO_PATTERNS = [
-  /\bme chamo\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'\-]{1,29}(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'\-]{1,29})?)/i,
-  /\bmeu nome e\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'\-]{1,29}(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'\-]{1,29})?)/i,
-  /\bsou\s+o\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'\-]{1,29}(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'\-]{1,29})?)/i,
-  /\bsou\s+a\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'\-]{1,29}(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'\-]{1,29})?)/i,
-  /\bsou\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'\-]{1,29}(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'\-]{1,29})?)/i,
+  /\bme chamo\s+([\p{L}][\p{L}'-]{1,29}(?:\s+[\p{L}][\p{L}'-]{1,29})?)/iu,
+  /\bmeu nome e\s+([\p{L}][\p{L}'-]{1,29}(?:\s+[\p{L}][\p{L}'-]{1,29})?)/iu,
+  /\bsou\s+o\s+([\p{L}][\p{L}'-]{1,29}(?:\s+[\p{L}][\p{L}'-]{1,29})?)/iu,
+  /\bsou\s+a\s+([\p{L}][\p{L}'-]{1,29}(?:\s+[\p{L}][\p{L}'-]{1,29})?)/iu,
+  /\bsou\s+([\p{L}][\p{L}'-]{1,29}(?:\s+[\p{L}][\p{L}'-]{1,29})?)/iu,
 ];
 
 const NAME_STOPWORDS = new Set([
@@ -50,7 +51,7 @@ function sanitizeExtractedName(value: string) {
 
   const tokens = normalized
     .split(" ")
-    .map((token) => token.replace(/[^A-Za-zÀ-ÿ'\-]/g, ""))
+    .map((token) => token.replace(/[^\p{L}'-]/gu, ""))
     .filter((token) => token.length >= 2 && token.length <= 24)
     .filter((token) => !NAME_STOPWORDS.has(token.toLowerCase()));
 
@@ -67,6 +68,7 @@ function extractNameFromText(text: string) {
     if (!match?.[1]) {
       continue;
     }
+
     const extracted = sanitizeExtractedName(match[1]);
     if (extracted) {
       return extracted;
@@ -110,10 +112,13 @@ function summarizeConversation(messages: { role: string; content: string }[]) {
 }
 
 export function buildContext(input: BuildContextInput): BuiltContext {
+  const userTurnCount = input.messages.filter((entry) => entry.role === "user").length;
+
   return {
     latestUserMessage: input.message,
     conversationSummary: summarizeConversation(input.messages),
     agentName: input.agentName ?? "Agente Identiq",
     userName: extractUserName(input),
+    userTurnCount,
   };
 }

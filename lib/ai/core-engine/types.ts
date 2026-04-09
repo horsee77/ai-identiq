@@ -1,20 +1,11 @@
 export type CoreIntent =
-  | "saudacao"
-  | "institucional"
-  | "comercial"
-  | "suporte"
-  | "onboarding"
-  | "kyc"
-  | "validacao_documental"
-  | "biometria"
-  | "compliance"
-  | "aml"
-  | "integracao"
-  | "faq"
-  | "duvida_operacional"
-  | "caso_critico"
-  | "solicitar_humano"
-  | "fora_de_escopo";
+  | "institucional_comercial"
+  | "faq_comercial"
+  | "suporte_operacional"
+  | "integracoes_api"
+  | "onboarding_kyc"
+  | "aml_compliance"
+  | "handoff_humano";
 
 export type Criticality = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -32,6 +23,12 @@ export type ResponseLayer =
 
 export type AllowedResponseMode = "template_only" | "knowledge_composer" | "enriched" | "restricted";
 
+export type HandoffLevel =
+  | "RESPONDER_NORMALMENTE"
+  | "RESPONDER_COM_RESSALVA"
+  | "SOLICITAR_CONTEXTO"
+  | "ESCALAR_HUMANO";
+
 export type KnowledgeHit = {
   id: string;
   score: number;
@@ -45,6 +42,24 @@ export type KnowledgeHit = {
   };
 };
 
+export type IgnoredKnowledgeChunk = {
+  id: string;
+  score: number;
+  reason: string;
+  category: string;
+};
+
+export type KnowledgeDebugTrace = {
+  retrievalStrategy: "hybrid" | "lexical_only" | "semantic_only";
+  minScoreApplied: number;
+  minLexicalApplied: number;
+  selectedChunkIds: string[];
+  ignoredChunks: IgnoredKnowledgeChunk[];
+  reranked: boolean;
+  categoryBoosts: Record<string, number>;
+  criticalTermHits: string[];
+};
+
 export type IntentClassification = {
   intent: CoreIntent;
   confidence: number;
@@ -53,6 +68,8 @@ export type IntentClassification = {
   requiresRag: boolean;
   allowedResponseMode: AllowedResponseMode;
   matchedKeywords: string[];
+  matchedPatterns: string[];
+  reasoning: string[];
 };
 
 export type PolicyDecision = {
@@ -61,6 +78,7 @@ export type PolicyDecision = {
   responseMode: AgentResponseMode;
   requiresKnowledge: boolean;
   safetyNotices: string[];
+  appliedPolicies: string[];
   restrictionReason?: string;
 };
 
@@ -76,6 +94,7 @@ export type RuntimeSwitches = {
   safetyLevel: SafetyLevel;
   knowledgeRequiredCategories: string[];
   defaultResponseMode: AgentResponseMode;
+  debugMode: boolean;
   localLlmProviderId?: string;
   externalProviderId?: string;
 };
@@ -100,12 +119,33 @@ export type CoreComposedResponse = {
   content: string;
   usedBlocks: string[];
   citedDocuments: { id: string; title: string; category: string }[];
+  responseSections: {
+    greeting: string;
+    main: string;
+    value: string;
+    limits?: string;
+    nextStep: string;
+  };
 };
 
 export type HandoffDecision = {
+  level: HandoffLevel;
   shouldHandoff: boolean;
   reason?: string;
   queueName?: string;
+  contextRequest?: string;
+};
+
+export type StageTiming = Partial<Record<ResponseLayer | "TOTAL", number>>;
+
+export type CoreDebugTrace = {
+  intentReasoning: string[];
+  confidenceReason: string;
+  policyBlocks: string[];
+  knowledge: KnowledgeDebugTrace;
+  handoffReason?: string;
+  timingsMs: StageTiming;
+  stageCostsUsd: Partial<Record<ResponseLayer, number>>;
 };
 
 export type CoreEngineResult = {
@@ -124,4 +164,5 @@ export type CoreEngineResult = {
   externalLlmUsed: boolean;
   providerIdUsed?: string;
   modelTechnicalNameUsed?: string;
+  debug: CoreDebugTrace;
 };
