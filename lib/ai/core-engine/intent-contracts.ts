@@ -1,4 +1,3 @@
-import "server-only";
 import {
   AllowedResponseMode,
   CoreIntent,
@@ -98,9 +97,9 @@ const CONTRACTS: Record<CoreIntent, IntentContract> = {
     },
     ragPolicy: {
       preferredCategories: ["Vendas", "FAQ Comercial", "FAQ Institucional", "Integracoes"],
-      minScore: 0.18,
-      minLexicalScore: 0.1,
-      topK: 4,
+      minScore: 0.12,
+      minLexicalScore: 0.04,
+      topK: 5,
       discardGenericChunks: true,
     },
   },
@@ -149,9 +148,9 @@ const CONTRACTS: Record<CoreIntent, IntentContract> = {
     },
     ragPolicy: {
       preferredCategories: ["FAQ Comercial", "Vendas", "FAQ Institucional"],
-      minScore: 0.16,
-      minLexicalScore: 0.08,
-      topK: 3,
+      minScore: 0.1,
+      minLexicalScore: 0.03,
+      topK: 5,
       discardGenericChunks: true,
     },
   },

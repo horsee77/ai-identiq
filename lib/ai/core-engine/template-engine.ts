@@ -1,4 +1,3 @@
-import "server-only";
 
 export function renderTemplate(template: string, variables: Record<string, string | number | undefined>) {
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, rawKey: string) => {

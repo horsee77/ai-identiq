@@ -44,5 +44,6 @@ export function composeCoreResponse({
     usedBlocks: composed.usedBlocks,
     citedDocuments: composed.citedDocuments,
     responseSections: composed.responseSections,
+    internalTrace: composed.internalTrace,
   };
 }

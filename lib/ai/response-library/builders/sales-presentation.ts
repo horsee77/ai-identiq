@@ -1,4 +1,3 @@
-import "server-only";
 import { CoreIntent } from "@/lib/ai/core-engine/types";
 
 type SalesPresentationInput = {
@@ -9,12 +8,12 @@ type SalesPresentationInput = {
 
 const VALUE_LINES: Record<CoreIntent, string[]> = {
   institucional_comercial: [
-    "A Identiq ajuda empresas a validar identidades com mais seguranca, reduzir friccao no onboarding e elevar controle de risco em operacoes digitais.",
-    "Nossa plataforma combina validacao em camadas, inteligencia operacional e governanca para dar escala com confianca.",
+    "A Identiq pode apoiar sua operacao com uma estrutura que combina seguranca, eficiencia e escalabilidade em jornadas criticas de identidade.",
+    "A adocao pode ser organizada por frentes como onboarding, validacao documental, biometria, compliance e integracoes, equilibrando experiencia do usuario e controle de risco.",
   ],
   faq_comercial: [
-    "Para sua operacao, conseguimos organizar a adocao por etapas e acelerar resultado sem comprometer seguranca e compliance.",
-    "A proposta costuma gerar ganhos em conversao, qualidade de analise e rastreabilidade de decisao.",
+    "Conseguimos estruturar uma entrada gradual, com ganho operacional rapido e governanca desde as primeiras etapas.",
+    "Em geral, isso melhora conversao, previsibilidade de analise e rastreabilidade de decisao sem sacrificar seguranca.",
   ],
   suporte_operacional: [
     "Com diagnostico estruturado e observabilidade, sua equipe reduz tempo de resposta e melhora previsibilidade operacional.",
@@ -35,7 +34,7 @@ const VALUE_LINES: Record<CoreIntent, string[]> = {
 
 const CTA_LINES: Record<CoreIntent, string> = {
   institucional_comercial:
-    "Se quiser, eu organizo uma apresentacao objetiva por frente: onboarding, KYC, biometria, compliance e integracoes API.",
+    "Se quiser, organizo isso para o seu contexto em um plano objetivo por frente: onboarding, KYC, biometria, compliance e integracoes API.",
   faq_comercial:
     "Se preferir, ja te ajudo a estruturar o escopo inicial para uma avaliacao comercial mais precisa.",
   suporte_operacional:

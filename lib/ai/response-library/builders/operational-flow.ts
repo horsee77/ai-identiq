@@ -1,4 +1,3 @@
-import "server-only";
 import { CoreIntent } from "@/lib/ai/core-engine/types";
 
 type OperationalFlow = {

@@ -25,7 +25,7 @@ function defaultKnowledgeDebug(runtimeLexical: boolean, runtimeSemantic: boolean
     reranked: false,
     categoryBoosts: {},
     criticalTermHits: [],
-  } as const;
+  };
 }
 
 async function tryEnrichment({
@@ -183,10 +183,7 @@ export async function executeCoreEnginePipeline(
     const searchResult = await searchKnowledgeBaseWithDebug(input.tenantId, input.message, contract.ragPolicy.topK, {
       lexicalSearchEnabled: input.runtime.lexicalSearchEnabled,
       localSemanticEnabled: input.runtime.localEmbeddingsEnabled,
-      requiredCategories:
-        input.runtime.knowledgeRequiredCategories.length > 0
-          ? input.runtime.knowledgeRequiredCategories
-          : contract.ragPolicy.preferredCategories,
+      requiredCategories: input.runtime.knowledgeRequiredCategories,
       intent: classification.intent,
       minScore: contract.ragPolicy.minScore,
       minLexicalScore: contract.ragPolicy.minLexicalScore,
@@ -314,6 +311,7 @@ export async function executeCoreEnginePipeline(
       handoffReason: handoff.reason,
       timingsMs: timings,
       stageCostsUsd: stageCosts,
+      responseTrace: composed.internalTrace,
     },
   };
 }

@@ -34,6 +34,8 @@ export type KnowledgeHit = {
   score: number;
   lexicalScore: number;
   semanticScore: number;
+  categoryBoost?: number;
+  semanticFallbackUsed?: boolean;
   content: string;
   document: {
     id: string;
@@ -58,6 +60,9 @@ export type KnowledgeDebugTrace = {
   reranked: boolean;
   categoryBoosts: Record<string, number>;
   criticalTermHits: string[];
+  semanticFallbackChunkIds?: string[];
+  relaxedThresholdsApplied?: boolean;
+  fallbackReason?: string;
 };
 
 export type IntentClassification = {
@@ -126,6 +131,12 @@ export type CoreComposedResponse = {
     limits?: string;
     nextStep: string;
   };
+  internalTrace: {
+    flowId?: string;
+    mode: "CLIENT_POLISHED_V2";
+    rawSafetyNotices: string[];
+    mandatoryBlockIds: string[];
+  };
 };
 
 export type HandoffDecision = {
@@ -146,6 +157,7 @@ export type CoreDebugTrace = {
   handoffReason?: string;
   timingsMs: StageTiming;
   stageCostsUsd: Partial<Record<ResponseLayer, number>>;
+  responseTrace?: CoreComposedResponse["internalTrace"];
 };
 
 export type CoreEngineResult = {

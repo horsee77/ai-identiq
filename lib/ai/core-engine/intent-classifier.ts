@@ -1,4 +1,3 @@
-import "server-only";
 import { getIntentContract, listIntentContracts } from "@/lib/ai/core-engine/intent-contracts";
 import { CoreIntent, IntentClassification, RuntimeSwitches } from "@/lib/ai/core-engine/types";
 
@@ -80,7 +79,7 @@ function classifyAsFallback(runtime: RuntimeSwitches, confidence: number): Inten
     allowedResponseMode: runtime.strictTemplatesOnly ? "template_only" : contract.allowedResponseMode,
     matchedKeywords: [],
     matchedPatterns: [],
-    reasoning: ["Fallback aplicado por baixa evidência de intenção específica."],
+    reasoning: ["Fallback aplicado por baixa evidÃƒÂªncia de intenÃƒÂ§ÃƒÂ£o especÃƒÂ­fica."],
   };
 }
 
@@ -120,7 +119,7 @@ export function classifyIntentLocally(input: string, runtime: RuntimeSwitches): 
 
   const reasoning = [
     `Intent detectada por score combinado: ${best.score.toFixed(2)}.`,
-    `Gap competitivo: ${gap.toFixed(2)} contra segunda melhor hipótese.`,
+    `Gap competitivo: ${gap.toFixed(2)} contra segunda melhor hipÃƒÂ³tese.`,
   ];
 
   if (best.matchedKeywords.length) {

@@ -1,4 +1,3 @@
-import "server-only";
 import { getIntentContract } from "@/lib/ai/core-engine/intent-contracts";
 import { AgentResponseMode, CoreIntent, HandoffDecision, KnowledgeHit } from "@/lib/ai/core-engine/types";
 import { compactLines, renderTemplate } from "@/lib/ai/core-engine/template-engine";
@@ -38,46 +37,16 @@ type ComposeApprovedResponseOutput = {
     limits?: string;
     nextStep: string;
   };
+  internalTrace: {
+    flowId?: string;
+    mode: "CLIENT_POLISHED_V2";
+    rawSafetyNotices: string[];
+    mandatoryBlockIds: string[];
+  };
 };
 
 function pickBaseBlock(intent: CoreIntent): ApprovedTemplateBlock {
   return INTENT_BLOCKS[intent]?.[0] ?? INTENT_BLOCKS.faq_comercial[0];
-}
-
-function bulletList(lines: string[]) {
-  if (!lines.length) {
-    return "";
-  }
-
-  return lines.map((line) => `- ${line}`).join("\n");
-}
-
-function buildKnowledgeSummary(knowledge: KnowledgeHit[], responseMode: AgentResponseMode) {
-  if (responseMode === "STRICT_TEMPLATE_MODE") {
-    return "";
-  }
-
-  if (!knowledge.length) {
-    return "";
-  }
-
-  const top = knowledge.slice(0, 4);
-  const bullets = top.map((hit) => {
-    const summary = hit.content.replace(/\s+/g, " ").slice(0, 180);
-    const score = (hit.score * 100).toFixed(0);
-    return `${hit.document.title} (${hit.document.category}, relevancia ${score}%): ${summary}`;
-  });
-
-  return ["Base aplicada:", bulletList(bullets)].join("\n");
-}
-
-function buildInstitutionalFacts(intent: CoreIntent) {
-  const facts = IDENTIQ_INSTITUTIONAL_FACTS[intent] ?? [];
-  if (!facts.length) {
-    return "";
-  }
-
-  return bulletList(facts.slice(0, 2));
 }
 
 function renderBlock(blockId: string, variables: Record<string, string | undefined>) {
@@ -89,26 +58,61 @@ function renderBlock(blockId: string, variables: Record<string, string | undefin
   return renderTemplate(block.text, variables);
 }
 
-function buildMainResponse({
-  baseResponse,
-  flowSummary,
-  institutionalFacts,
-  knowledgeSummary,
-}: {
-  baseResponse: string;
-  flowSummary: string;
-  institutionalFacts: string;
-  knowledgeSummary: string;
-}) {
-  return compactLines([
-    baseResponse,
-    flowSummary,
-    institutionalFacts ? `Diretriz Identiq:\n${institutionalFacts}` : "",
-    knowledgeSummary,
-  ]);
+function buildInstitutionalFacts(intent: CoreIntent) {
+  const facts = IDENTIQ_INSTITUTIONAL_FACTS[intent] ?? [];
+  return facts.slice(0, 2);
 }
 
-function buildLimitsSection({
+function buildFlowNarrative(intent: CoreIntent) {
+  const flow = resolveOperationalFlow(intent);
+  if (!flow) {
+    return { flowId: undefined, sentence: "" };
+  }
+
+  const sentence = `${flow.allowedOutput} ${flow.caution}`;
+  return {
+    flowId: flow.id,
+    sentence,
+  };
+}
+
+function buildKnowledgeNarrative(knowledge: KnowledgeHit[], responseMode: AgentResponseMode) {
+  if (responseMode === "STRICT_TEMPLATE_MODE" || !knowledge.length) {
+    return "";
+  }
+
+  const top = knowledge.slice(0, 3);
+  const lines = top.map((hit) => {
+    const snippet = hit.content.replace(/\s+/g, " ").slice(0, 130).trim();
+    return `${hit.document.title}: ${snippet}`;
+  });
+
+  if (lines.length === 1) {
+    return `Com base no contexto recuperado, ${lines[0]}.`;
+  }
+
+  return `Com base no contexto recuperado, destacam-se ${lines.join("; ")}.`;
+}
+
+function buildMainResponse({
+  baseResponse,
+  flowNarrative,
+  institutionalFacts,
+  knowledgeNarrative,
+}: {
+  baseResponse: string;
+  flowNarrative: string;
+  institutionalFacts: string[];
+  knowledgeNarrative: string;
+}) {
+  const factsNarrative = institutionalFacts.length
+    ? `Na pratica, isso se traduz em ${institutionalFacts.join(" ")}`
+    : "";
+
+  return compactLines([baseResponse, flowNarrative, factsNarrative, knowledgeNarrative]);
+}
+
+function buildLimitsNarrative({
   assertionLimits,
   safetyNotices,
   handoff,
@@ -117,37 +121,29 @@ function buildLimitsSection({
   safetyNotices: string[];
   handoff: HandoffDecision;
 }) {
-  const limits = [...assertionLimits];
+  const notes: string[] = [];
 
   if (handoff.level === "RESPONDER_COM_RESSALVA") {
-    limits.push("A orientacao segue com cautela por confianca moderada neste contexto.");
+    notes.push("Para manter precisao neste ponto, a orientacao segue com cautela controlada.");
   }
 
   if (handoff.level === "SOLICITAR_CONTEXTO") {
-    limits.push("Para elevar precisao, e necessario confirmar alguns pontos do seu fluxo.");
+    notes.push("Com mais contexto do seu fluxo, consigo aumentar bastante a precisao da recomendacao.");
   }
 
   if (safetyNotices.length) {
-    limits.push(...safetyNotices);
+    notes.push(...safetyNotices);
   }
 
-  if (!limits.length) {
+  if (handoff.level === "ESCALAR_HUMANO") {
+    notes.push(...assertionLimits.slice(0, 2));
+  }
+
+  if (!notes.length) {
     return "";
   }
 
-  return ["Cuidados e limites aplicados:", bulletList(limits.slice(0, 5))].join("\n");
-}
-
-function buildFlowSummary(intent: CoreIntent) {
-  const flow = resolveOperationalFlow(intent);
-  if (!flow) {
-    return "";
-  }
-
-  return [
-    "Direcao recomendada:",
-    bulletList([`Acao: ${flow.allowedOutput}`, `Cautela: ${flow.caution}`]),
-  ].join("\n");
+  return notes.join(" ");
 }
 
 function buildNextStep({
@@ -160,13 +156,12 @@ function buildNextStep({
   if (handoff.level === "ESCALAR_HUMANO") {
     return compactLines([
       renderBlock("common.handoff.notice", {}),
-      handoff.reason ?? "Vamos seguir com revisao humana para manter seguranca e aderencia ao processo.",
+      handoff.reason ?? "Este cenario pede validacao humana complementar para manter seguranca e aderencia ao processo.",
     ]);
   }
 
   if (handoff.level === "SOLICITAR_CONTEXTO") {
     return compactLines([
-      renderBlock("common.context.request", {}),
       handoff.contextRequest,
       buildNextStepCta(intent),
     ]);
@@ -200,10 +195,12 @@ export function composeApprovedResponse(
 
   const baseResponse = renderTemplate(baseBlock.text, variables);
 
+  const mandatoryBlockIds: string[] = [];
   for (const blockId of contract.mandatoryBlocks) {
     const block = getApprovedTemplateBlockById(blockId);
     if (block) {
       usedBlocks.add(block.id);
+      mandatoryBlockIds.push(block.id);
     }
   }
 
@@ -214,14 +211,15 @@ export function composeApprovedResponse(
     userTurnCount: input.userTurnCount,
   });
 
-  const flowSummary = buildFlowSummary(input.intent);
+  const flowNarrative = buildFlowNarrative(input.intent);
   const institutionalFacts = buildInstitutionalFacts(input.intent);
-  const knowledgeSummary = buildKnowledgeSummary(input.knowledge, input.responseMode);
+  const knowledgeNarrative = buildKnowledgeNarrative(input.knowledge, input.responseMode);
+
   const mainResponse = buildMainResponse({
     baseResponse,
-    flowSummary,
+    flowNarrative: flowNarrative.sentence,
     institutionalFacts,
-    knowledgeSummary,
+    knowledgeNarrative,
   });
 
   const valuePresentation = contract.useCommercialPresentation
@@ -232,7 +230,7 @@ export function composeApprovedResponse(
       })
     : "";
 
-  const limitsSection = buildLimitsSection({
+  const limitsNarrative = buildLimitsNarrative({
     assertionLimits: contract.assertionLimits,
     safetyNotices: input.safetyNotices,
     handoff: input.handoff,
@@ -244,7 +242,7 @@ export function composeApprovedResponse(
     greeting,
     main_response: mainResponse,
     value_presentation: valuePresentation,
-    limits_section: limitsSection,
+    limits_section: limitsNarrative,
     knowledge_summary: "",
     next_step: nextStep,
   });
@@ -265,8 +263,14 @@ export function composeApprovedResponse(
       greeting,
       main: mainResponse,
       value: valuePresentation,
-      limits: limitsSection || undefined,
+      limits: limitsNarrative || undefined,
       nextStep,
+    },
+    internalTrace: {
+      flowId: flowNarrative.flowId,
+      mode: "CLIENT_POLISHED_V2",
+      rawSafetyNotices: input.safetyNotices,
+      mandatoryBlockIds,
     },
   };
 }
