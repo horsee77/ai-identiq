@@ -15,174 +15,174 @@ const prisma = new PrismaClient();
 const CHUNK_SIZE = 800;
 const OVERLAP = 120;
 const EMBEDDING_MODEL = "local-embedding-v1";
-const TRAINING_SOURCE = "identiq_training_pack_v1";
+const TRAINING_SOURCE = "identiq_training_pack_v2";
 const EMBEDDING_DIMENSIONS = Number(process.env.AI_LOCAL_EMBEDDING_DIMENSIONS ?? 256);
 
 const trainingDocuments: TrainingDocument[] = [
   {
     slug: "identiq-visao-geral-institucional",
-    title: "Identiq | Visão Geral Institucional",
+    title: "Identiq | Visao Geral Institucional",
     category: "FAQ Institucional",
     description: "Posicionamento institucional, proposta de valor e escopo operacional da Identiq.",
     tags: ["institucional", "visao-geral", "identidade", "confianca"],
     content: `
-A Identiq é uma plataforma orientada para verificação de identidade, segurança operacional e conformidade em jornadas digitais.
-Seu foco é apoiar operações com critérios técnicos, rastreabilidade, governança e redução de risco.
+A Identiq e uma plataforma orientada para verificacao de identidade, seguranca operacional e conformidade em jornadas digitais.
+Seu foco e apoiar operacoes com criterios tecnicos, rastreabilidade, governanca e reducao de risco.
 
 Pilares institucionais:
-- confiança e credibilidade em processos de identidade;
-- segurança e proteção de dados sensíveis;
-- clareza operacional em fluxos críticos;
-- governança de decisão com revisão humana quando necessário.
+- confianca e credibilidade em processos de identidade;
+- seguranca e protecao de dados sensiveis;
+- clareza operacional em fluxos criticos;
+- governanca de decisao com revisao humana quando necessario.
 
-A comunicação institucional deve ser objetiva, profissional e cautelosa, sem promessas indevidas.
+A comunicacao institucional deve ser objetiva, profissional e cautelosa, sem promessas indevidas.
     `.trim(),
   },
   {
     slug: "identiq-portfolio-capacidades",
-    title: "Identiq | Portfólio de Capacidades",
+    title: "Identiq | Portfolio de Capacidades",
     category: "FAQ Comercial",
-    description: "Mapa macro das capacidades operacionais e de produto da Identiq.",
+    description: "Mapa das capacidades operacionais e de produto da Identiq.",
     tags: ["portfolio", "comercial", "kyc", "fraude", "compliance"],
     content: `
 Capacidades centrais da Identiq:
-- onboarding digital com trilha auditável;
-- KYC com validações em camadas;
-- validação documental e documentoscopia;
-- biometria e face match com interpretação cautelosa;
-- prevenção a fraudes e monitoramento operacional;
-- apoio a compliance e AML em fluxos sensíveis;
-- integração por API para canais e sistemas corporativos.
+- onboarding digital com trilha auditavel;
+- KYC com validacoes em camadas;
+- validacao documental e documentoscopia;
+- biometria e face match com interpretacao cautelosa;
+- prevencao a fraudes e monitoramento operacional;
+- apoio a compliance e AML em fluxos sensiveis;
+- integracao por API para canais e sistemas corporativos.
 
-A resposta comercial deve sempre alinhar escopo técnico, requisitos regulatórios, volume operacional e SLA esperado.
+A resposta comercial deve sempre alinhar escopo tecnico, requisitos regulatorios, volume operacional e SLA esperado.
     `.trim(),
   },
   {
     slug: "identiq-onboarding-corporativo",
     title: "Identiq | Fluxo de Onboarding Corporativo",
     category: "Onboarding",
-    description: "Boas práticas e etapas recomendadas para onboarding corporativo em ambientes regulados.",
+    description: "Boas praticas e etapas recomendadas para onboarding corporativo em ambientes regulados.",
     tags: ["onboarding", "fluxo", "operacoes", "triagem"],
     content: `
 Fluxo recomendado de onboarding corporativo:
-1. coleta de dados e documentos obrigatórios;
-2. validação estrutural de cadastro e consistência de campos;
-3. validação documental e checagem de integridade;
-4. etapas biométricas quando aplicável ao caso;
-5. avaliação de risco conforme política interna;
-6. revisão humana em divergências, baixa confiança ou cenário crítico.
+1. coleta de dados e documentos obrigatorios;
+2. validacao estrutural de cadastro e consistencia de campos;
+3. validacao documental e checagem de integridade;
+4. etapas biometricas quando aplicavel ao caso;
+5. avaliacao de risco conforme politica interna;
+6. revisao humana em divergencias, baixa confianca ou cenario critico.
 
 Diretriz operacional:
-- não concluir aprovação automática final sem base verificável;
-- registrar evidências e justificativas em cada etapa relevante.
+- nao concluir aprovacao automatica final sem base verificavel;
+- registrar evidencias e justificativas em cada etapa relevante.
     `.trim(),
   },
   {
     slug: "identiq-kyc-validacao-documental",
-    title: "Identiq | KYC e Validação Documental",
+    title: "Identiq | KYC e Validacao Documental",
     category: "KYC",
-    description: "Critérios de KYC e limites de resposta para validação documental.",
+    description: "Criterios de KYC e limites de resposta para validacao documental.",
     tags: ["kyc", "documentoscopia", "validacao", "rastreabilidade"],
     content: `
-Em KYC, a resposta deve priorizar critérios objetivos e evidências de processo.
+Em KYC, a resposta deve priorizar criterios objetivos e evidencias de processo.
 
-Princípios:
-- validar consistência, legibilidade e integridade documental;
-- tratar divergências com cautela e encaminhamento adequado;
-- manter rastreabilidade de dados utilizados na decisão;
-- evitar linguagem conclusiva quando a análise ainda depende de validação adicional.
+Principios:
+- validar consistencia, legibilidade e integridade documental;
+- tratar divergencias com cautela e encaminhamento adequado;
+- manter rastreabilidade de dados utilizados na decisao;
+- evitar linguagem conclusiva quando a analise ainda depende de validacao adicional.
 
-Guardrail obrigatório:
-- nunca afirmar aprovação documental sem base real e verificável.
+Guardrail obrigatorio:
+- nunca afirmar aprovacao documental sem base real e verificavel.
     `.trim(),
   },
   {
     slug: "identiq-biometria-face-match",
     title: "Identiq | Biometria e Face Match",
     category: "Biometria",
-    description: "Diretrizes de segurança para respostas relacionadas a biometria e comparação facial.",
+    description: "Diretrizes de seguranca para respostas relacionadas a biometria e comparacao facial.",
     tags: ["biometria", "face-match", "seguranca", "risco"],
     content: `
 Em temas de biometria e face match:
-- tratar resultados como apoio técnico e não como decisão final isolada;
-- considerar qualidade de captura, contexto de uso e política de risco;
-- escalar para revisão humana em inconsistências ou baixa confiança.
+- tratar resultados como apoio tecnico e nao como decisao final isolada;
+- considerar qualidade de captura, contexto de uso e politica de risco;
+- escalar para revisao humana em inconsistencias ou baixa confianca.
 
 Guardrails:
 - nunca inventar resultado de biometria;
 - nunca inventar resultado de face match;
-- nunca declarar conclusão humana quando a resposta for automatizada.
+- nunca declarar conclusao humana quando a resposta for automatizada.
     `.trim(),
   },
   {
     slug: "identiq-aml-risco-compliance",
     title: "Identiq | AML, Risco e Compliance",
     category: "AML",
-    description: "Postura institucional para temas sensíveis de risco regulatório e compliance.",
+    description: "Postura institucional para temas sensiveis de risco regulatorio e compliance.",
     tags: ["aml", "compliance", "risco", "regulatorio"],
     content: `
-Para AML e compliance, respostas devem ser técnicas e prudentes.
+Para AML e compliance, respostas devem ser tecnicas e prudentes.
 
 Diretrizes:
-- contextualizar análise por indícios e políticas internas;
-- evitar afirmações absolutas de conformidade legal;
-- recomendar revisão especializada em casos críticos;
+- contextualizar analise por indicios e politicas internas;
+- evitar afirmacoes absolutas de conformidade legal;
+- recomendar revisao especializada em casos criticos;
 - registrar motivos de escalonamento quando houver handoff.
 
-Guardrail obrigatório:
-- nunca afirmar compliance absoluta sem avaliação formal da área responsável.
+Guardrail obrigatorio:
+- nunca afirmar compliance absoluta sem avaliacao formal da area responsavel.
     `.trim(),
   },
   {
     slug: "identiq-prevencao-fraude-monitoramento",
-    title: "Identiq | Prevenção a Fraudes e Monitoramento",
-    category: "Operações",
-    description: "Princípios de prevenção a fraude e monitoramento contínuo de risco operacional.",
+    title: "Identiq | Prevencao a Fraudes e Monitoramento",
+    category: "Operacoes",
+    description: "Principios de prevencao a fraude e monitoramento continuo de risco operacional.",
     tags: ["fraude", "monitoramento", "operacoes", "seguranca"],
     content: `
-Prevenção a fraude deve combinar sinais de risco, contexto transacional e histórico operacional.
+Prevencao a fraude deve combinar sinais de risco, contexto transacional e historico operacional.
 
-Boas práticas:
-- detectar padrões anômalos e inconsistências relevantes;
-- correlacionar eventos em múltiplas etapas da jornada;
-- aplicar resposta proporcional ao nível de risco;
-- manter evidências para auditoria e revisão.
+Boas praticas:
+- detectar padroes anormais e inconsistencias relevantes;
+- correlacionar eventos em multiplas etapas da jornada;
+- aplicar resposta proporcional ao nivel de risco;
+- manter evidencias para auditoria e revisao.
 
-Em caso de risco elevado, priorizar contenção, escalonamento e análise humana.
+Em caso de risco elevado, priorizar contencao, escalonamento e analise humana.
     `.trim(),
   },
   {
     slug: "identiq-integracoes-api-canais",
-    title: "Identiq | Integrações, API e Canais",
-    category: "Integrações",
-    description: "Diretrizes para integração técnica da Identiq em canais digitais e APIs.",
+    title: "Identiq | Integracoes, API e Canais",
+    category: "Integracoes",
+    description: "Diretrizes para integracao tecnica da Identiq em canais digitais e APIs.",
     tags: ["integracao", "api", "webchat", "canais"],
     content: `
-A integração com a plataforma deve seguir contratos de payload, autenticação segura e observabilidade.
+A integracao com a plataforma deve seguir contratos de payload, autenticacao segura e observabilidade.
 
-Recomendações:
-- validar campos obrigatórios antes do envio;
-- tratar erros com códigos consistentes e rastreáveis;
+Recomendacoes:
+- validar campos obrigatorios antes do envio;
+- tratar erros com codigos consistentes e rastreaveis;
 - registrar request id para auditoria operacional;
 - separar ambientes e chaves por contexto de uso;
-- monitorar latência, custo e taxa de falha por canal.
+- monitorar latencia, custo e taxa de falha por canal.
     `.trim(),
   },
   {
     slug: "identiq-guardrails-ia-autonoma",
-    title: "Identiq | Guardrails da IA Autônoma",
+    title: "Identiq | Guardrails da IA Autonoma",
     category: "Compliance",
-    description: "Regras mandatórias de segurança e governança para respostas da IA.",
+    description: "Regras mandatorias de seguranca e governanca para respostas da IA.",
     tags: ["guardrails", "ia", "governanca", "seguranca"],
     content: `
-Regras mandatórias da IA da Identiq:
-- nunca afirmar aprovação documental sem evidência verificável;
-- nunca inventar resultado de biometria, face match ou status de análise;
-- nunca expor dados sensíveis sem autorização e contexto válido;
-- nunca simular decisão humana final;
+Regras mandatorias da IA da Identiq:
+- nunca afirmar aprovacao documental sem evidencia verificavel;
+- nunca inventar resultado de biometria, face match ou status de analise;
+- nunca expor dados sensiveis sem autorizacao e contexto valido;
+- nunca simular decisao humana final;
 - sempre sinalizar limites da resposta quando houver incerteza.
 
-Quando houver criticidade, baixa confiança ou solicitação explícita de atendente:
+Quando houver criticidade, baixa confianca ou solicitacao explicita de atendente:
 - ativar handoff humano;
 - registrar motivo de escalonamento;
 - preservar resumo operacional para continuidade do atendimento.
@@ -192,61 +192,61 @@ Quando houver criticidade, baixa confiança ou solicitação explícita de atend
     slug: "identiq-escalonamento-humano",
     title: "Identiq | Escalonamento Humano e Continuidade",
     category: "Suporte",
-    description: "Critérios de handoff e continuidade operacional entre IA e equipe humana.",
+    description: "Criterios de handoff e continuidade operacional entre IA e equipe humana.",
     tags: ["handoff", "humano", "suporte", "continuidade"],
     content: `
 O handoff humano deve ocorrer quando:
-- o usuário solicitar atendimento humano;
-- a confiança da resposta estiver abaixo do limiar definido;
-- houver risco crítico, ambiguidade alta ou dados insuficientes;
-- o caso envolver impacto regulatório relevante.
+- o usuario solicitar atendimento humano;
+- a confianca da resposta estiver abaixo do limiar definido;
+- houver risco critico, ambiguidade alta ou dados insuficientes;
+- o caso envolver impacto regulatorio relevante.
 
-Na transição IA -> humano:
+Na transicao IA para humano:
 - registrar resumo objetivo da conversa;
-- destacar pontos de risco e pendências;
-- preservar contexto técnico já coletado.
+- destacar pontos de risco e pendencias;
+- preservar contexto tecnico ja coletado.
     `.trim(),
   },
   {
     slug: "identiq-linguagem-e-tom-institucional",
     title: "Identiq | Linguagem e Tom Institucional",
     category: "FAQ Institucional",
-    description: "Padrão de linguagem oficial para agentes da Identiq.",
+    description: "Padrao de linguagem oficial para agentes da Identiq.",
     tags: ["tom", "linguagem", "institucional", "resposta"],
     content: `
-Padrão de linguagem da Identiq:
+Padrao de linguagem da Identiq:
 - profissional, claro e objetivo;
-- humano e confiável, sem exageros de marketing;
+- humano e confiavel, sem exageros de marketing;
 - transparente sobre limites e incertezas;
 - cauteloso em temas de risco, identidade e compliance.
 
 Evitar:
 - promessas indevidas;
-- afirmações não verificáveis;
-- respostas vagas sem próximos passos.
+- afirmacoes nao verificaveis;
+- respostas vagas sem proximos passos.
 
-Sempre que possível:
-- orientar ação prática;
-- indicar quando revisão humana é necessária.
+Sempre que possivel:
+- orientar acao pratica;
+- indicar quando revisao humana e necessaria.
     `.trim(),
   },
   {
     slug: "identiq-faq-operacional-base",
     title: "Identiq | FAQ Operacional Base",
-    category: "FAQ Técnico",
-    description: "Perguntas frequentes de operação, suporte e governança da plataforma.",
+    category: "FAQ Tecnico",
+    description: "Perguntas frequentes de operacao, suporte e governanca da plataforma.",
     tags: ["faq", "operacional", "suporte", "tecnico"],
     content: `
 FAQ operacional base:
 
 Pergunta: A IA pode aprovar automaticamente um caso documental?
-Resposta: Não como decisão final. A IA oferece apoio e triagem; aprovação final exige base verificável e política operacional aplicada.
+Resposta: Nao como decisao final. A IA oferece apoio e triagem; aprovacao final exige base verificavel e politica operacional aplicada.
 
-Pergunta: O que fazer quando o caso é sensível?
-Resposta: Aplicar resposta cautelosa, restringir escopo e encaminhar para revisão humana.
+Pergunta: O que fazer quando o caso e sensivel?
+Resposta: Aplicar resposta cautelosa, restringir escopo e encaminhar para revisao humana.
 
 Pergunta: Como melhorar qualidade de resposta?
-Resposta: Ampliar base de conhecimento com conteúdo validado, bem categorizado, atualizado e indexado.
+Resposta: Ampliar base de conhecimento com conteudo validado, bem categorizado, atualizado e indexado.
     `.trim(),
   },
 ];
@@ -314,7 +314,7 @@ async function indexDocumentLocally({
   });
 
   if (!chunks.length) {
-    throw new Error(`Documento ${documentId} sem conteúdo indexável.`);
+    throw new Error(`Documento ${documentId} sem conteudo indexavel.`);
   }
 
   const embeddings = generateLocalEmbeddings(chunks);
@@ -377,7 +377,7 @@ async function indexDocumentLocally({
       where: { id: job.id },
       data: {
         status: "FAILED",
-        errorMessage: error instanceof Error ? error.message : "Erro inesperado na indexação.",
+        errorMessage: error instanceof Error ? error.message : "Erro inesperado na indexacao.",
         finishedAt: new Date(),
       },
     });
@@ -486,7 +486,7 @@ async function main() {
   });
 
   if (!tenant) {
-    throw new Error(`Tenant "${tenantSlug}" não encontrado.`);
+    throw new Error(`Tenant "${tenantSlug}" nao encontrado.`);
   }
 
   const uploadedById = tenant.memberships[0]?.userId;

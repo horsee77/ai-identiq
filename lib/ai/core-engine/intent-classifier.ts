@@ -1,4 +1,4 @@
-﻿import "server-only";
+import "server-only";
 import { CoreIntent, IntentClassification, RuntimeSwitches } from "@/lib/ai/core-engine/types";
 
 type IntentRule = {
@@ -14,7 +14,17 @@ type IntentRule = {
 const INTENT_RULES: IntentRule[] = [
   {
     intent: "solicitar_humano",
-    keywords: ["atendente", "humano", "especialista", "analista", "falar com pessoa"],
+    keywords: [
+      "atendente",
+      "humano",
+      "especialista",
+      "analista",
+      "falar com pessoa",
+      "falar com atendente",
+      "quero falar com humano",
+      "transferir atendimento",
+      "me transfere",
+    ],
     weight: 6,
     criticality: "HIGH",
     requiresRag: false,
@@ -23,7 +33,16 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "caso_critico",
-    keywords: ["fraude", "urgente", "risco alto", "vazamento", "incidente", "suspeita grave"],
+    keywords: [
+      "fraude",
+      "urgente",
+      "risco alto",
+      "vazamento",
+      "incidente",
+      "suspeita grave",
+      "vazou dado",
+      "conta comprometida",
+    ],
     weight: 6,
     criticality: "CRITICAL",
     requiresRag: true,
@@ -32,7 +51,7 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "validacao_documental",
-    keywords: ["documento", "documental", "aprovar documento", "reprovar documento"],
+    keywords: ["documento", "documental", "aprovar documento", "reprovar documento", "documentoscopia"],
     weight: 5,
     criticality: "HIGH",
     requiresRag: true,
@@ -40,7 +59,7 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "biometria",
-    keywords: ["biometria", "face match", "selfie", "liveness"],
+    keywords: ["biometria", "face match", "selfie", "liveness", "prova de vida"],
     weight: 5,
     criticality: "HIGH",
     requiresRag: true,
@@ -48,7 +67,7 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "compliance",
-    keywords: ["compliance", "regulatório", "regulatorio", "conformidade", "norma"],
+    keywords: ["compliance", "regulatorio", "conformidade", "norma", "governanca", "lgpd"],
     weight: 5,
     criticality: "HIGH",
     requiresRag: true,
@@ -56,7 +75,7 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "aml",
-    keywords: ["aml", "lavagem de dinheiro", "pep", "sanções", "sancoes"],
+    keywords: ["aml", "lavagem de dinheiro", "pep", "sancoes", "lista restritiva"],
     weight: 5,
     criticality: "HIGH",
     requiresRag: true,
@@ -64,7 +83,7 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "kyc",
-    keywords: ["kyc", "conheça seu cliente", "conheca seu cliente"],
+    keywords: ["kyc", "conheca seu cliente", "know your customer"],
     weight: 4,
     criticality: "MEDIUM",
     requiresRag: true,
@@ -72,7 +91,7 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "onboarding",
-    keywords: ["onboarding", "cadastro", "abertura de conta", "ativação"],
+    keywords: ["onboarding", "cadastro", "abertura de conta", "ativacao", "entrada de cliente"],
     weight: 4,
     criticality: "MEDIUM",
     requiresRag: true,
@@ -80,7 +99,7 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "suporte",
-    keywords: ["erro", "bug", "suporte", "falha", "não funciona", "nao funciona"],
+    keywords: ["erro", "bug", "suporte", "falha", "nao funciona", "instavel", "indisponivel"],
     weight: 4,
     criticality: "MEDIUM",
     requiresRag: true,
@@ -88,7 +107,7 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "integracao",
-    keywords: ["api", "integração", "integracao", "webhook", "sdk", "endpoint"],
+    keywords: ["api", "integracao", "webhook", "sdk", "endpoint", "payload", "token"],
     weight: 4,
     criticality: "MEDIUM",
     requiresRag: true,
@@ -96,7 +115,7 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "comercial",
-    keywords: ["preço", "preco", "plano", "proposta", "comercial", "contrato", "cotação", "cotacao"],
+    keywords: ["preco", "plano", "proposta", "comercial", "contrato", "cotacao", "orcamento"],
     weight: 3,
     criticality: "MEDIUM",
     requiresRag: false,
@@ -104,7 +123,17 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "institucional",
-    keywords: ["identiq", "empresa", "institucional", "sobre vocês", "sobre voces"],
+    keywords: [
+      "identiq",
+      "empresa",
+      "institucional",
+      "sobre voces",
+      "sobre a identiq",
+      "quem e a identiq",
+      "o que a identiq faz",
+      "conhece a identiq",
+      "quem sao voces",
+    ],
     weight: 3,
     criticality: "LOW",
     requiresRag: false,
@@ -120,7 +149,20 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "duvida_operacional",
-    keywords: ["procedimento", "passo a passo", "operacional", "fluxo interno", "playbook"],
+    keywords: [
+      "procedimento",
+      "passo a passo",
+      "operacional",
+      "fluxo interno",
+      "playbook",
+      "treinar ia",
+      "alimentar ia",
+      "base de conhecimento",
+      "upload de arquivo",
+      "subir pdf",
+      "subir foto",
+      "documentacao interna",
+    ],
     weight: 3,
     criticality: "MEDIUM",
     requiresRag: true,
@@ -128,13 +170,16 @@ const INTENT_RULES: IntentRule[] = [
   },
   {
     intent: "saudacao",
-    keywords: ["olá", "ola", "bom dia", "boa tarde", "boa noite", "oi"],
-    weight: 1,
+    keywords: ["ola", "bom dia", "boa tarde", "boa noite", "oi", "hello", "e ai"],
+    weight: 2,
     criticality: "LOW",
     requiresRag: false,
     allowedResponseMode: "template_only",
   },
 ];
+
+const GREETING_SIGNALS = ["ola", "oi", "bom dia", "boa tarde", "boa noite", "hello", "e ai"];
+const INTRO_SIGNALS = ["me chamo", "meu nome e", "sou o", "sou a", "sou "];
 
 function normalizeText(value: string) {
   return value
@@ -153,8 +198,15 @@ function evaluateCriticality(intent: CoreIntent, confidence: number): IntentClas
 }
 
 function inferOutOfScope(text: string) {
-  const nonScopeSignals = ["loteria", "futebol", "piada", "fofoca", "celebridade"];
+  const nonScopeSignals = ["loteria", "futebol", "piada", "fofoca", "celebridade", "horoscopo"];
   return nonScopeSignals.some((signal) => text.includes(signal));
+}
+
+function inferGreetingOrIntroduction(text: string) {
+  const isGreeting = GREETING_SIGNALS.some((signal) => text.includes(signal));
+  const hasIntro = INTRO_SIGNALS.some((signal) => text.includes(signal));
+  const wordCount = text.split(" ").filter(Boolean).length;
+  return (isGreeting || hasIntro) && wordCount <= 14;
 }
 
 export function classifyIntentLocally(
@@ -173,7 +225,7 @@ export function classifyIntentLocally(
         matches.push({
           intent: rule.intent,
           score: rule.weight * keywordWeight,
-          keyword: keyword,
+          keyword,
           rule,
         });
       }
@@ -188,6 +240,18 @@ export function classifyIntentLocally(
       requiresHandoff: false,
       requiresRag: false,
       allowedResponseMode: "restricted",
+      matchedKeywords: [],
+    };
+  }
+
+  if (!matches.length && inferGreetingOrIntroduction(text)) {
+    return {
+      intent: "saudacao",
+      confidence: 0.86,
+      criticality: "LOW",
+      requiresHandoff: false,
+      requiresRag: false,
+      allowedResponseMode: "template_only",
       matchedKeywords: [],
     };
   }
@@ -245,4 +309,3 @@ export function classifyIntentLocally(
     matchedKeywords: bestData.matchedKeywords,
   };
 }
-

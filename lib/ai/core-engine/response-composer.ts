@@ -12,18 +12,21 @@ export function composeCoreResponse({
   policy,
   knowledge,
   agentName,
+  userName,
   message,
 }: {
   classification: IntentClassification;
   policy: PolicyDecision;
   knowledge: KnowledgeHit[];
   agentName: string;
+  userName?: string;
   message: string;
 }): CoreComposedResponse {
   const composed = composeApprovedResponse({
     intent: classification.intent,
     responseMode: policy.responseMode,
     agentName,
+    userName,
     userMessage: message,
     knowledge,
     safetyNotices: policy.safetyNotices,

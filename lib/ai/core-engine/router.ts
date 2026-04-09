@@ -158,6 +158,7 @@ export async function executeCoreEnginePipeline(
     policy,
     knowledge,
     agentName: context.agentName,
+    userName: context.userName,
     message: context.latestUserMessage,
   });
   layersUsed.push("L4_TEMPLATE");

@@ -1,7 +1,8 @@
-﻿import "server-only";
+import "server-only";
 import { AgentResponseMode, CoreIntent, KnowledgeHit } from "@/lib/ai/core-engine/types";
 import { compactLines, renderTemplate } from "@/lib/ai/core-engine/template-engine";
 import { resolveOperationalFlow } from "@/lib/ai/response-library/builders/operational-flow";
+import { IDENTIQ_INSTITUTIONAL_FACTS } from "@/lib/ai/response-library/templates/identiq-brain";
 import {
   ApprovedTemplateBlock,
   COMMON_BLOCKS,
@@ -12,6 +13,7 @@ type ComposeApprovedResponseInput = {
   intent: CoreIntent;
   responseMode: AgentResponseMode;
   agentName: string;
+  userName?: string;
   userMessage: string;
   knowledge: KnowledgeHit[];
   safetyNotices: string[];
@@ -36,10 +38,31 @@ function buildKnowledgeSummary(knowledge: KnowledgeHit[]) {
   const top = knowledge.slice(0, 3);
   const bullets = top.map((hit) => {
     const summary = hit.content.replace(/\s+/g, " ").slice(0, 240);
-    return `- ${hit.document.title}: ${summary}`;
+    const score = (hit.score * 100).toFixed(1);
+    return `- ${hit.document.title} (${hit.document.category}, relevancia ${score}%): ${summary}`;
   });
 
-  return `Referências internas relevantes:\n${bullets.join("\n")}`;
+  return `Referencias internas relevantes:\n${bullets.join("\n")}`;
+}
+
+function buildIdentityLine(userName?: string) {
+  if (!userName) {
+    return "";
+  }
+
+  return renderTemplate("Prazer em falar com voce, {{user_name}}.", {
+    user_name: userName,
+  });
+}
+
+function buildInstitutionalFacts(intent: CoreIntent) {
+  const facts = IDENTIQ_INSTITUTIONAL_FACTS[intent] ?? [];
+  if (!facts.length) {
+    return "";
+  }
+
+  const lines = facts.slice(0, 3).map((fact) => `- ${fact}`);
+  return compactLines(["Base institucional Identiq aplicada:", lines.join("\n")]);
 }
 
 export function composeApprovedResponse(
@@ -55,6 +78,7 @@ export function composeApprovedResponse(
 
   const base = renderTemplate(baseBlock.text, {
     agent_name: input.agentName,
+    user_name: input.userName,
     user_message: input.userMessage,
   });
 
@@ -62,23 +86,28 @@ export function composeApprovedResponse(
     input.responseMode === "STRICT_TEMPLATE_MODE" ? "" : buildKnowledgeSummary(input.knowledge);
 
   const safetySection = input.safetyNotices.length
-    ? `Diretrizes de segurança aplicadas:\n${input.safetyNotices.map((notice) => `- ${notice}`).join("\n")}`
+    ? `Diretrizes de seguranca aplicadas:\n${input.safetyNotices.map((notice) => `- ${notice}`).join("\n")}`
     : "";
 
   const flow = resolveOperationalFlow(input.intent);
   const flowSection = flow
     ? compactLines([
         `Fluxo operacional aplicado: ${flow.allowedOutput}`,
-        `Cautela obrigatória: ${flow.caution}`,
+        `Cautela obrigatoria: ${flow.caution}`,
       ])
     : "";
 
+  const identityLine = buildIdentityLine(input.userName);
+  const institutionalFacts = buildInstitutionalFacts(input.intent);
+
   const nextSteps = input.includeHandoffNotice
-    ? "Próximo passo: encaminhar para analista humano com o contexto desta conversa."
-    : "Próximo passo: se necessário, envie mais contexto para aprofundarmos com segurança.";
+    ? "Proximo passo: encaminhar para analista humano com o contexto desta conversa."
+    : "Proximo passo: se necessario, envie mais contexto para aprofundarmos com seguranca.";
 
   const content = compactLines([
+    identityLine,
     base,
+    institutionalFacts,
     knowledgeSummary,
     flowSection,
     safetySection,
@@ -91,6 +120,7 @@ export function composeApprovedResponse(
   if (automationNotice) usedBlocks.push(automationNotice.id);
   if (scopeLimit) usedBlocks.push(scopeLimit.id);
   if (input.includeHandoffNotice && handoffNotice) usedBlocks.push(handoffNotice.id);
+  if (institutionalFacts) usedBlocks.push(`brain.${input.intent}`);
 
   const citedDocuments = input.knowledge.slice(0, 5).map((hit) => ({
     id: hit.document.id,
@@ -104,4 +134,3 @@ export function composeApprovedResponse(
     citedDocuments,
   };
 }
-

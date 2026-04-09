@@ -45,7 +45,7 @@ export const INTENT_BLOCKS: Record<CoreIntent, ApprovedTemplateBlock[]> = {
       subtype: "base",
       language: "pt-BR",
       criticality: "LOW",
-      text: "Olá. Sou o {{agent_name}} da Identiq. Posso apoiar com onboarding, KYC, compliance, integrações e operação segura.",
+      text: "Ola. Sou o {{agent_name}} da Identiq. Posso apoiar com onboarding, KYC, compliance, integracoes e operacao segura.",
       placeholders: ["agent_name"],
     },
   ],
